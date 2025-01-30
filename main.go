@@ -34,7 +34,12 @@ func main() {
 	// TODO: Check if there are uncommitted changes
 	// TODO: Read the output of the command some how
 	// cmd := exec.Command("cd", eslint_dir, "git", "log", "--oneline")
-	Stdout, Stderr := exec.Command("cd", eslint_dir, "|", "git", "log", "--online").Output()
+	cherr := os.Chdir(eslint_dir)
+	if cherr != nil {
+		fmt.Println("cherr", cherr)
+	}
+
+	Stdout, Stderr := exec.Command("git", "log", "--oneline").Output()
 
 	if Stderr != nil {
 		fmt.Println("ERRROR!!!!", Stderr)
