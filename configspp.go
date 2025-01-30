@@ -1,34 +1,40 @@
 // Script to pull my local vimrc, nvim, ghostty, prettier, stylelint, and eslint
 // configs from GitHub
-package main
+package configspp
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 )
 
-func getGitStatus(dir string) []byte {
+func chdir(dir string) {
 	cherr := os.Chdir(dir)
 	if cherr != nil {
 		fmt.Println("cherr", cherr)
 	}
-
-	Stdout, Stderr := exec.Command("git", "status").Output()
-
-	if Stderr != nil {
-		fmt.Println("ERRROR!!!!", Stderr)
-	}
-
-	return Stdout
 }
 
-func main() {
-	// TODO: 1. Get location of configs depending on OS (mac/linux)
-	// TODO: 2. Check if there are any pending changes, and if so, report them
-	// TODO: 3. Pull changes from GitHub
-	// TODO: 4. Source bashrc?
+func getGitStatus(dir string) ([]byte, error) {
+	chdir(dir)
+
+	Stdout, Stderr := exec.Command("git", "status").Output()
+	if Stderr != nil {
+		return nil, Stderr
+	}
+
+	uncommittedText := "Changes not staged for commit:"
+	if strings.Contains(string(Stdout), uncommittedText) {
+		return nil, errors.New("Changes need to be committed in" + dir)
+	}
+
+	return Stdout, nil
+}
+
+func getPullDirs() []string {
 	var eslint_dir, ghostty_dir, nvim_dir, stylelint_dir, vimrc_dir string
 
 	HOME_PATH := "/home/johnsoct/"
@@ -48,19 +54,38 @@ func main() {
 		vimrc_dir = HOME_PATH + "dev/configs/"
 	}
 
-	dirs := []string{
+	return []string{
 		eslint_dir,
 		ghostty_dir,
 		nvim_dir,
 		stylelint_dir,
 		vimrc_dir,
 	}
+}
 
-	for _, val := range dirs {
-		// TODO: Check if there are uncommitted changes
-		// TODO: Read the output of the command some how
-		out := getGitStatus(val)
+func pullFromGit(dir string) ([]byte, error) {
+	chdir(dir)
 
-		fmt.Printf("%s\n", out)
+	Stdout, Stderr := exec.Command("git", "pull").Output()
+	if Stderr != nil {
+		return nil, Stderr
+	}
+
+	return Stdout, nil
+}
+
+func main() {
+	dirs := getPullDirs()
+
+	for _, dir := range dirs {
+		_, statusError := getGitStatus(dir)
+		if statusError != nil {
+			fmt.Fprintf(os.Stderr, "Error checking git status: %v\n", statusError)
+		}
+
+		_, pullError := pullFromGit(dir)
+		if pullError != nil {
+			fmt.Fprintf(os.Stderr, "Error pulling from git: %v\n", pullError)
+		}
 	}
 }
