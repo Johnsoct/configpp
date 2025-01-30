@@ -6,7 +6,23 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 )
+
+func getGitStatus(dir string) []byte {
+	cherr := os.Chdir(dir)
+	if cherr != nil {
+		fmt.Println("cherr", cherr)
+	}
+
+	Stdout, Stderr := exec.Command("git", "status").Output()
+
+	if Stderr != nil {
+		fmt.Println("ERRROR!!!!", Stderr)
+	}
+
+	return Stdout
+}
 
 func main() {
 	// TODO: 1. Get location of configs depending on OS (mac/linux)
@@ -15,42 +31,36 @@ func main() {
 	// TODO: 4. Source bashrc?
 	var eslint_dir, ghostty_dir, nvim_dir, stylelint_dir, vimrc_dir string
 
-	OS := os.Getenv("GOOS")
+	HOME_PATH := "/home/johnsoct/"
+	OS := runtime.GOOS
 
 	if OS == "linux" {
-		eslint_dir = "$HOME/dev/configs/eslint/"
-		ghostty_dir = "$HOME/dev/configs/ghostty/"
-		nvim_dir = "$HOME/.config/nvim/"
-		stylelint_dir = "$HOME/dev/configs/stylelint/"
-		vimrc_dir = "$HOME/dev/configs/"
+		eslint_dir = HOME_PATH + "dev/configs/eslint/"
+		ghostty_dir = HOME_PATH + "dev/configs/ghostty/"
+		nvim_dir = HOME_PATH + ".config/nvim/"
+		stylelint_dir = HOME_PATH + "dev/configs/stylelint/"
+		vimrc_dir = HOME_PATH + "dev/configs/"
 	} else if OS == "darwin" {
-		eslint_dir = "$HOME/dev/configs/eslint/"
-		ghostty_dir = "$HOME/dev/configs/ghostty/"
-		nvim_dir = "$HOME/.config/nvim/"
-		stylelint_dir = "$HOME/dev/configs/stylelint/"
-		vimrc_dir = "$HOME/dev/configs/"
+		eslint_dir = HOME_PATH + "dev/configs/eslint/"
+		ghostty_dir = HOME_PATH + "dev/configs/ghostty/"
+		nvim_dir = HOME_PATH + ".config/nvim/"
+		stylelint_dir = HOME_PATH + "dev/configs/stylelint/"
+		vimrc_dir = HOME_PATH + "dev/configs/"
 	}
 
-	// TODO: Check if there are uncommitted changes
-	// TODO: Read the output of the command some how
-	// cmd := exec.Command("cd", eslint_dir, "git", "log", "--oneline")
-	cherr := os.Chdir(eslint_dir)
-	if cherr != nil {
-		fmt.Println("cherr", cherr)
+	dirs := []string{
+		eslint_dir,
+		ghostty_dir,
+		nvim_dir,
+		stylelint_dir,
+		vimrc_dir,
 	}
 
-	Stdout, Stderr := exec.Command("git", "log", "--oneline").Output()
+	for _, val := range dirs {
+		// TODO: Check if there are uncommitted changes
+		// TODO: Read the output of the command some how
+		out := getGitStatus(val)
 
-	if Stderr != nil {
-		fmt.Println("ERRROR!!!!", Stderr)
+		fmt.Printf("%s\n", out)
 	}
-
-	fmt.Printf("%s\n", Stdout)
-
-	fmt.Println(exec.Command("git log", eslint_dir))
-	fmt.Println(exec.Command("git log", ghostty_dir))
-	fmt.Println(exec.Command("git log", nvim_dir))
-	fmt.Println(exec.Command("git log", stylelint_dir))
-	fmt.Println(exec.Command("git log", vimrc_dir))
-	// Pull changes
 }
