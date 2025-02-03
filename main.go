@@ -11,10 +11,17 @@ import (
 	"strings"
 )
 
-var OS = runtime.GOOS
+var (
+	OS = runtime.GOOS
+)
 
 func chdir(dir string) {
-	cherr := os.Chdir(dir)
+	local_dir, err := replaceTildeInPath(dir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error replacing the tilde in dir; dir: %s; error: %v", dir, err)
+	}
+
+	cherr := os.Chdir(local_dir)
 	if cherr != nil {
 		fmt.Println("cherr", cherr)
 	}
@@ -98,6 +105,15 @@ func getGitStatus(dir string) ([]byte, error) {
 	return Stdout, nil
 }
 
+func getHomePath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "User's home directory could not be retrieved!")
+	}
+
+	return home
+}
+
 func getPullDirs() []string {
 	var eslint_dir, ghostty_dir, nvim_dir, stylelint_dir, vimrc_dir string
 	homepath := getHomePath()
@@ -128,16 +144,20 @@ func pullFromGit(dir string) ([]byte, error) {
 	return Stdout, nil
 }
 
-func getHomePath() string {
-	var homepath string
+func replaceTildeInPath(path string) (string, error) {
+	local_path := path
+	indexOfTilde := strings.IndexRune(local_path, '~')
 
-	if OS == "linux" {
-		homepath = "/home/johnsoct/"
-	} else if OS == "darwin" {
-		homepath = "/Users/octopodadev/"
+	if indexOfTilde != -1 {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return local_path, err
+		}
+
+		local_path = home + local_path[indexOfTilde+1:]
 	}
 
-	return homepath
+	return local_path, nil
 }
 
 func main() {
