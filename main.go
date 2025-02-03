@@ -106,7 +106,7 @@ func getPullDirs() []string {
 	ghostty_dir = homepath + "dev/configs/ghostty/"
 	nvim_dir = homepath + ".config/nvim/"
 	stylelint_dir = homepath + "dev/configs/stylelint/"
-	vimrc_dir = homepath + "dev/configs/"
+	vimrc_dir = homepath + "dev/configs/vim/"
 
 	return []string{
 		eslint_dir,
