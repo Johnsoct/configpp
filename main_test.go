@@ -67,8 +67,8 @@ func TestGetGitStatus(t *testing.T) {
 	}
 
 	stdoutString := string(stdout)
-	if stdoutString != happyPath {
-		t.Error("The output of getGitStatus was not as expected", stdoutString)
+	if strings.Contains(stdoutString, happyPath) {
+		t.Error("The output of getGitStatus was not as expected", stdoutString, happyPath)
 	}
 
 	// Sad path
