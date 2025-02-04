@@ -2,8 +2,10 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"os/user"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -52,9 +54,36 @@ func TestCPVimConfig(t *testing.T) {}
 func TestGetConfigs(t *testing.T) {}
 
 // TODO:
-func TestGetGitStatus(t *testing.T) {}
+func TestGetGitStatus(t *testing.T) {
+	happyPath := "nothing to commit, working tree clean"
+	path := getHomePath() + "/dev/configpp"
+	sadPath := "Changes not staged for commit"
 
-// TODO:
+	// Happy path
+
+	stdout, stderr := getGitStatus(path)
+	if stderr != nil {
+		t.Error("There was an error calling getGitStatus()", stderr)
+	}
+
+	if string(stdout) != happyPath {
+		t.Error("The output of getGitStatus was not as expected", stdout)
+	}
+
+	// Sad path
+
+	exec.Command("touch", "test.txt").Output()
+
+	stdout, stderr = getGitStatus(path)
+	if stderr != nil {
+		t.Error("There was an error calling getGitStatus()", stderr)
+	}
+
+	if !strings.Contains(string(stdout), sadPath) {
+		t.Error("The output of getGitStatus() was not as expected", stdout, sadPath)
+	}
+}
+
 func TestGetPullDirs(t *testing.T) {
 	dirs := getPullDirs()
 
