@@ -61,6 +61,8 @@ func TestGetGitStatus(t *testing.T) {
 
 	// Happy path
 
+	exec.Command("git", "stash").Run()
+
 	stdout, stderr := getGitStatus(path)
 	if stderr != nil {
 		t.Error("There was an error calling getGitStatus()", stderr)
@@ -68,12 +70,14 @@ func TestGetGitStatus(t *testing.T) {
 
 	stdoutString := string(stdout)
 	if !strings.Contains(stdoutString, happyPath) {
-		t.Error("The output of getGitStatus was not as expected", stdoutString, happyPath)
+		t.Error("Expected getGitStatus() to contain [%s], but it returned [%s]", happyPath, stdoutString)
 	}
+
+	exec.Command("git", "stash", "apply").Run()
 
 	// Sad path
 
-	exec.Command("touch", "test.txt").Output()
+	exec.Command("touch", "test.txt").Run()
 
 	stdout, stderr = getGitStatus(path)
 	if stderr != nil {
@@ -82,8 +86,10 @@ func TestGetGitStatus(t *testing.T) {
 
 	stdoutString = string(stdout)
 	if !strings.Contains(stdoutString, sadPath) {
-		t.Error("The output of getGitStatus() was not as expected", stdoutString, sadPath)
+		t.Errorf("Expected getGitStatus() to contain [%s], but it returned [%s]", sadPath, stdoutString)
 	}
+
+	exec.Command("rm", "test.txt").Run() // scary
 }
 
 func TestGetPullDirs(t *testing.T) {
