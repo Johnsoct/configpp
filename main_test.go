@@ -70,7 +70,7 @@ func TestGetGitStatus(t *testing.T) {
 
 	stdoutString := string(stdout)
 	if !strings.Contains(stdoutString, happyPath) {
-		t.Error("Expected getGitStatus() to contain [%s], but it returned [%s]", happyPath, stdoutString)
+		t.Errorf("Expected getGitStatus() to contain [%s], but it returned [%s]", happyPath, stdoutString)
 	}
 
 	exec.Command("git", "stash", "apply").Run()
@@ -79,14 +79,9 @@ func TestGetGitStatus(t *testing.T) {
 
 	exec.Command("touch", "test.txt").Run()
 
-	stdout, stderr = getGitStatus(path)
-	if stderr != nil {
-		t.Error("There was an error calling getGitStatus()", stderr)
-	}
-
-	stdoutString = string(stdout)
-	if !strings.Contains(stdoutString, sadPath) {
-		t.Errorf("Expected getGitStatus() to contain [%s], but it returned [%s]", sadPath, stdoutString)
+	_, stderr = getGitStatus(path)
+	if stderr == nil {
+		t.Errorf("Expected getGitStatus() to equal [%s]", sadPath)
 	}
 
 	exec.Command("rm", "test.txt").Run() // scary
