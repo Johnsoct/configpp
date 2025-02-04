@@ -55,10 +55,43 @@ func TestGetConfigs(t *testing.T) {}
 func TestGetGitStatus(t *testing.T) {}
 
 // TODO:
-func TestGetPullDirs(t *testing.T) {}
+func TestGetPullDirs(t *testing.T) {
+	dirs := getPullDirs()
 
-// TODO:
-func TestPullFromGit(t *testing.T) {}
+	if dirs[0] != getHomePath()+"dev/configs/eslint/" {
+		t.Error("getPullDirs() returned the wrong path for eslint")
+	}
+
+	if dirs[1] != getHomePath()+"dev/configs/ghostty/" {
+		t.Error("getPullDirs() returned the wrong path for ghostty")
+	}
+
+	if dirs[2] != getHomePath()+".config/nvim/" {
+		t.Error("getPullDirs() returned the wrong path for nvim")
+	}
+
+	if dirs[3] != getHomePath()+"dev/configs/stylelint/" {
+		t.Error("getPullDirs() returned the wrong path for stylelint")
+	}
+
+	if dirs[4] != getHomePath()+"dev/configs/vim/" {
+		t.Error("getPullDirs() returned the wrong path for vim")
+	}
+}
+
+func TestPullFromGit(t *testing.T) {
+	tests := []InputOutput{
+		{input: getHomePath() + "/dev/configpp", output: "Already up to date."},
+	}
+
+	for _, v := range tests {
+		_, stderr := pullFromGit(v.input)
+
+		if stderr != nil {
+			t.Error("There was an unexpected error from pullFromGit()")
+		}
+	}
+}
 
 func TestGetHomePath(t *testing.T) {
 	OS := runtime.GOOS
