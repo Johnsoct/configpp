@@ -41,10 +41,14 @@ func TestChdir(t *testing.T) {
 	}
 }
 
+<<<<<<< Updated upstream
 // TODO:
 // func TestCPConfigs(t *testing.T) {
 // 	dirs := getPullDirs()
 // }
+=======
+// TODO: func TestCPConfigs(t *testing.T) {}
+>>>>>>> Stashed changes
 
 func TestCPGhosttyConfig(t *testing.T) {
 	// I'm going to copy from src to destination but with a different name so
@@ -133,6 +137,7 @@ func TestGetConfigs(t *testing.T) {
 		exec.Command("git", "stash", "apply").Run()
 	}
 
+<<<<<<< Updated upstream
 	// Sad path
 
 	for _, dir := range dirs {
@@ -170,6 +175,9 @@ func TestGetConfigs(t *testing.T) {
 			// TODO: how do we handle sad path when there are no upstream changes???
 		}
 	}
+=======
+	// TODO: Sad path
+>>>>>>> Stashed changes
 }
 
 func TestGetGitStatus(t *testing.T) {
