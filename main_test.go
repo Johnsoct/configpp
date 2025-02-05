@@ -177,7 +177,7 @@ func TestGetConfigs(t *testing.T) {
 func TestGetGitStatus(t *testing.T) {
 	happyPath := "nothing to commit, working tree clean"
 	path := getHomePath() + "/dev/configpp"
-	sadPath := "Changes not staged for commit"
+	sadPath := "Untracked files:"
 
 	// Happy path
 
@@ -201,7 +201,7 @@ func TestGetGitStatus(t *testing.T) {
 	exec.Command("touch", "test.txt").Run()
 
 	_, stderr = getGitStatus(path)
-	if stderr == nil {
+	if !strings.Contains(stderr.Error(), sadPath) {
 		t.Errorf("Expected getGitStatus() to equal [%s]", sadPath)
 	}
 
