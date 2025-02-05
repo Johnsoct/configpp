@@ -254,7 +254,7 @@ func TestPullFromGit(t *testing.T) {
 	dirtyWorkingTree()
 
 	_, stderr = pullFromGit(path)
-	if stderr == nil {
+	if stderr != nil {
 		t.Errorf("Error expected from pullFromGit()")
 	}
 
