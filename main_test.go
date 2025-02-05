@@ -131,6 +131,7 @@ func TestGetConfigs(t *testing.T) {
 		chdir(dir)
 
 		exec.Command("git", "stash", "apply").Run()
+		exec.Command("git", "stash", "clear").Run()
 	}
 
 	// Sad path
@@ -165,6 +166,7 @@ func TestGetConfigs(t *testing.T) {
 
 				exec.Command("git", "reset", "--hard").Run()
 				exec.Command("git", "stash", "apply").Run()
+				exec.Command("git", "stash", "clear").Run()
 			}
 		} else {
 			// TODO: how do we handle sad path when there are no upstream changes???
@@ -192,6 +194,7 @@ func TestGetGitStatus(t *testing.T) {
 	}
 
 	exec.Command("git", "stash", "apply").Run()
+	exec.Command("git", "stash", "clear").Run()
 
 	// Sad path
 
