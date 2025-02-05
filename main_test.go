@@ -42,19 +42,134 @@ func TestChdir(t *testing.T) {
 }
 
 // TODO:
-func TestCPConfigs(t *testing.T) {}
+// func TestCPConfigs(t *testing.T) {
+// 	dirs := getPullDirs()
+// }
 
-// TODO:
-func TestCPGhosttyConfig(t *testing.T) {}
+func TestCPGhosttyConfig(t *testing.T) {
+	// I'm going to copy from src to destination but with a different name so
+	// the copied file can be removed within the test and I don't have to
+	// modify my ghostty config file
+	fakeGhosttyFile := "config_test"
+	ghosttyDestination := getGhosttyDestination()
+	ghosttySrc := getPullDirs()[0] + "ghostty/"
 
-// TODO:
-func TestCPVimConfig(t *testing.T) {}
+	chdir(ghosttySrc)
+	exec.Command("touch", fakeGhosttyFile).Run()
 
-// TODO:
+	_, cpError := cpGhosttyConfig(ghosttySrc + fakeGhosttyFile)
+	if cpError != nil {
+		t.Errorf("There was a `cp` error [%v]", cpError)
+		t.FailNow()
+	}
+
+	chdir(ghosttyDestination)
+	_, stderr := exec.Command("ls", fakeGhosttyFile).Output()
+	if stderr != nil {
+		t.Errorf("There was an error running `ls` [%v]", stderr)
+	}
+
+	chdir(ghosttySrc)
+	exec.Command("rm", fakeGhosttyFile).Run()
+
+	chdir(ghosttyDestination)
+	exec.Command("rm", fakeGhosttyFile).Run()
+}
+
+func TestCPVimConfig(t *testing.T) {
+	// I'm going to copy from src to destination but with a different name so
+	// the copied file can be removed within the test and I don't have to
+	// modify my vim config file
+	fakeVimFile := ".vimrc_test"
+	vimDestination := getHomePath()
+	vimSrc := getPullDirs()[0] + "vim/"
+
+	chdir(vimSrc)
+	exec.Command("touch", fakeVimFile).Run()
+
+	_, cpError := cpVimConfig(vimSrc + fakeVimFile)
+	if cpError != nil {
+		t.Errorf("There was a `cp` error [%v]", cpError)
+		t.FailNow()
+	}
+
+	chdir(vimDestination)
+	_, stderr := exec.Command("ls", fakeVimFile).Output()
+	if stderr != nil {
+		t.Errorf("There was an error running `ls` [%v]", stderr)
+	}
+
+	chdir(vimSrc)
+	exec.Command("rm", fakeVimFile).Run()
+
+	chdir(vimDestination)
+	exec.Command("rm", fakeVimFile).Run()
+}
+
 func TestGetConfigs(t *testing.T) {
 	dirs := getPullDirs()
 
-	getConfigs(dirs)
+	// Happy path
+
+	for _, dir := range dirs {
+		chdir(dir)
+
+		exec.Command("git", "stash").Run()
+	}
+
+	statusErrors, pullErrors := getConfigs(dirs)
+
+	if len(statusErrors) != 0 {
+		t.Error("There were git status errors", statusErrors)
+	}
+
+	if len(pullErrors) != 0 {
+		t.Error("There were git pull errors", pullErrors)
+	}
+
+	for _, dir := range dirs {
+		chdir(dir)
+
+		exec.Command("git", "stash", "apply").Run()
+	}
+
+	// Sad path
+
+	for _, dir := range dirs {
+		chdir(dir)
+
+		// NOTE: if there aren't changes upstream, "Already up to date" is returned
+		// regardless of what we stash/change
+		exec.Command("git", "fetch").Run()
+		stdout, stderr := exec.Command("git", "status").Output()
+		if stderr != nil {
+			t.Error("Unexpected error checking git status", stderr)
+		}
+
+		if strings.Contains(string(stdout), "Your branch is behind 'origin/") {
+			exec.Command("git", "stash").Run()
+			exec.Command("echo", "'New Change'", ">>", "test.txt").Run()
+
+			statusErrors, pullErrors = getConfigs(dirs)
+
+			if len(statusErrors) == 0 {
+				t.Error("There were git status errors", statusErrors)
+			}
+
+			if len(pullErrors) == 0 {
+				t.Error("There were git pull errors", pullErrors)
+			}
+
+			for _, dir := range dirs {
+				chdir(dir)
+
+				exec.Command("git", "reset", "--hard").Run()
+				exec.Command("git", "stash", "apply").Run()
+			}
+		} else {
+			// TODO: how do we handle sad path when there are no upstream changes???
+		}
+	}
 }
 
 func TestGetGitStatus(t *testing.T) {
@@ -93,24 +208,12 @@ func TestGetGitStatus(t *testing.T) {
 func TestGetPullDirs(t *testing.T) {
 	dirs := getPullDirs()
 
-	if dirs[0] != getHomePath()+"/dev/configs/eslint/" {
-		t.Error("getPullDirs() returned the wrong path for eslint")
+	if dirs[0] != getHomePath()+"/dev/configs/" {
+		t.Error("getPullDirs() returned the wrong path for configs")
 	}
 
-	if dirs[1] != getHomePath()+"/dev/configs/ghostty/" {
-		t.Error("getPullDirs() returned the wrong path for ghostty")
-	}
-
-	if dirs[2] != getHomePath()+"/.config/nvim/" {
+	if dirs[1] != getHomePath()+"/.config/nvim/" {
 		t.Error("getPullDirs() returned the wrong path for nvim")
-	}
-
-	if dirs[3] != getHomePath()+"/dev/configs/stylelint/" {
-		t.Error("getPullDirs() returned the wrong path for stylelint")
-	}
-
-	if dirs[4] != getHomePath()+"/dev/configs/vim/" {
-		t.Error("getPullDirs() returned the wrong path for vim")
 	}
 }
 

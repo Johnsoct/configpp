@@ -28,66 +28,70 @@ func chdir(dir string) {
 }
 
 func cpConfigs(dirs []string) {
-	var configFilepath string
+	var ghostySrc string
 	if OS == "linux" {
-		configFilepath = "config"
+		ghostySrc = "config"
 	} else if OS == "darwin" {
-		configFilepath = "mac_config"
+		ghostySrc = "mac_config"
 	}
 
-	_, ghosttyCpErr := cpGhostyConfig(dirs[1] + configFilepath)
+	_, ghosttyCpErr := cpGhosttyConfig(dirs[0] + ghostySrc)
 	if ghosttyCpErr != nil {
 		fmt.Fprintf(os.Stderr, "Error while copying ghostty's config from /configs %v\n", ghosttyCpErr)
 	}
 
-	_, vimCpErr := cpVimConfig(dirs[4] + ".vimrc")
+	_, vimCpErr := cpVimConfig(dirs[0] + "/vim/.vimrc")
 	if vimCpErr != nil {
 		fmt.Fprintf(os.Stderr, "Error while copying .vimrc from /configs %v\n", vimCpErr)
 	}
 }
 
-func cpGhostyConfig(filepath string) ([]byte, error) {
-	var destination string
-	homepath := getHomePath()
-
-	if OS == "linux" {
-		destination = homepath + ".config/ghostty/config"
-	} else if OS == "darwin" {
-		destination = homepath + "Library/Application Support/com.mitchellh.ghostty/config"
-	}
+func cpGhosttyConfig(filepath string) ([]byte, error) {
+	destination := getGhosttyDestination()
 
 	Stdout, Stderr := exec.Command("cp", filepath, destination).Output()
-	if Stderr != nil {
-		return nil, Stderr
-	}
 
-	return Stdout, nil
+	return Stdout, Stderr
 }
 
 func cpVimConfig(filepath string) ([]byte, error) {
 	destination := getHomePath()
 
 	Stdout, Stderr := exec.Command("cp", filepath, destination).Output()
-	if Stderr != nil {
-		return nil, Stderr
-	}
 
-	return Stdout, nil
+	return Stdout, Stderr
 }
 
-func getConfigs(dirs []string) {
-	// fmt.Println(dirs)
+func getConfigs(dirs []string) ([]error, []error) {
+	pullErrors := make([]error, 0)
+	statusErrors := make([]error, 0)
+
 	for _, dir := range dirs {
 		_, statusError := getGitStatus(dir)
 		if statusError != nil {
-			fmt.Fprintf(os.Stderr, "Error checking git status: %v\n", statusError)
+			statusErrors = append(statusErrors, statusError)
 		}
 
 		_, pullError := pullFromGit(dir)
 		if pullError != nil {
-			fmt.Fprintf(os.Stderr, "Error pulling from git: %v\n", pullError)
+			fmt.Println(pullError)
+			pullErrors = append(pullErrors, pullError)
 		}
 	}
+
+	return statusErrors, pullErrors
+}
+
+func getGhosttyDestination() string {
+	destination := getHomePath()
+
+	if OS == "linux" {
+		destination += "/.config/ghostty/"
+	} else if OS == "darwin" {
+		destination += "/Library/Application Support/com.mitchellh.ghostty/"
+	}
+
+	return destination
 }
 
 func getGitStatus(dir string) ([]byte, error) {
@@ -98,8 +102,11 @@ func getGitStatus(dir string) ([]byte, error) {
 		return nil, Stderr
 	}
 
+	// NOTE: not checking for untracked files because we're rebasing on pull
 	uncommittedText := "Changes not staged for commit:"
-	if strings.Contains(string(Stdout), uncommittedText) {
+	uncommittedCheck := strings.Contains(string(Stdout), uncommittedText)
+
+	if uncommittedCheck {
 		return nil, errors.New("Changes need to be committed in" + dir)
 	}
 
@@ -116,28 +123,21 @@ func getHomePath() string {
 }
 
 func getPullDirs() []string {
-	var eslint_dir, ghostty_dir, nvim_dir, stylelint_dir, vimrc_dir string
 	homepath := getHomePath()
 
-	eslint_dir = homepath + "/dev/configs/eslint/"
-	ghostty_dir = homepath + "/dev/configs/ghostty/"
-	nvim_dir = homepath + "/.config/nvim/"
-	stylelint_dir = homepath + "/dev/configs/stylelint/"
-	vimrc_dir = homepath + "/dev/configs/vim/"
+	configs_dir := homepath + "/dev/configs/"
+	nvim_dir := homepath + "/.config/nvim/"
 
 	return []string{
-		eslint_dir,
-		ghostty_dir,
+		configs_dir,
 		nvim_dir,
-		stylelint_dir,
-		vimrc_dir,
 	}
 }
 
 func pullFromGit(dir string) ([]byte, error) {
 	chdir(dir)
 
-	Stdout, Stderr := exec.Command("git", "pull").Output()
+	Stdout, Stderr := exec.Command("git", "pull", "--rebase").Output()
 	if Stderr != nil {
 		return nil, Stderr
 	}
@@ -164,6 +164,12 @@ func replaceTildeInPath(path string) (string, error) {
 func main() {
 	dirs := getPullDirs()
 
-	getConfigs(dirs)
+	statusErrors, pullErrors := getConfigs(dirs)
+	if statusErrors != nil {
+		fmt.Fprintf(os.Stderr, "Error checking git status: %v\n", statusErrors)
+	} else if pullErrors != nil {
+		fmt.Fprintf(os.Stderr, "Error pulling from git: %v\n", pullErrors)
+	}
+
 	cpConfigs(dirs)
 }
