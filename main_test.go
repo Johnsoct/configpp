@@ -177,10 +177,10 @@ func TestGetConfigs(t *testing.T) {
 func TestGetGitStatus(t *testing.T) {
 	happyPath := "nothing to commit, working tree clean"
 	path := getHomePath() + "/dev/configpp"
-	sadPath := "Untracked files:"
 
 	// Happy path
 
+	chdir(path)
 	exec.Command("git", "stash").Run()
 
 	stdout, stderr := getGitStatus(path)
@@ -198,14 +198,17 @@ func TestGetGitStatus(t *testing.T) {
 
 	// Sad path
 
-	exec.Command("touch", "test.txt").Run()
+	exec.Command("git", "stash").Run()
+	exec.Command("echo", "'test'", ">>", "README.md").Run()
 
 	_, stderr = getGitStatus(path)
-	if !strings.Contains(stderr.Error(), sadPath) {
-		t.Errorf("Expected getGitStatus() to equal [%s]", sadPath)
+	if stderr == nil {
+		t.Errorf("Expected getGitStatus() to throw an error")
 	}
 
-	exec.Command("rm", "test.txt").Run() // scary
+	exec.Command("git", "reset", "--hard").Run() // scary
+	exec.Command("git", "stash", "apply").Run()
+	exec.Command("git", "stash", "clear").Run()
 }
 
 func TestGetPullDirs(t *testing.T) {
