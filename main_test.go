@@ -51,9 +51,12 @@ func TestCPGhosttyConfig(t *testing.T) {}
 func TestCPVimConfig(t *testing.T) {}
 
 // TODO:
-func TestGetConfigs(t *testing.T) {}
+func TestGetConfigs(t *testing.T) {
+	dirs := getPullDirs()
 
-// TODO:
+	getConfigs(dirs)
+}
+
 func TestGetGitStatus(t *testing.T) {
 	happyPath := "nothing to commit, working tree clean"
 	path := getHomePath() + "/dev/configpp"
@@ -90,23 +93,23 @@ func TestGetGitStatus(t *testing.T) {
 func TestGetPullDirs(t *testing.T) {
 	dirs := getPullDirs()
 
-	if dirs[0] != getHomePath()+"dev/configs/eslint/" {
+	if dirs[0] != getHomePath()+"/dev/configs/eslint/" {
 		t.Error("getPullDirs() returned the wrong path for eslint")
 	}
 
-	if dirs[1] != getHomePath()+"dev/configs/ghostty/" {
+	if dirs[1] != getHomePath()+"/dev/configs/ghostty/" {
 		t.Error("getPullDirs() returned the wrong path for ghostty")
 	}
 
-	if dirs[2] != getHomePath()+".config/nvim/" {
+	if dirs[2] != getHomePath()+"/.config/nvim/" {
 		t.Error("getPullDirs() returned the wrong path for nvim")
 	}
 
-	if dirs[3] != getHomePath()+"dev/configs/stylelint/" {
+	if dirs[3] != getHomePath()+"/dev/configs/stylelint/" {
 		t.Error("getPullDirs() returned the wrong path for stylelint")
 	}
 
-	if dirs[4] != getHomePath()+"dev/configs/vim/" {
+	if dirs[4] != getHomePath()+"/dev/configs/vim/" {
 		t.Error("getPullDirs() returned the wrong path for vim")
 	}
 }

@@ -76,6 +76,7 @@ func cpVimConfig(filepath string) ([]byte, error) {
 }
 
 func getConfigs(dirs []string) {
+	// fmt.Println(dirs)
 	for _, dir := range dirs {
 		_, statusError := getGitStatus(dir)
 		if statusError != nil {
@@ -118,11 +119,11 @@ func getPullDirs() []string {
 	var eslint_dir, ghostty_dir, nvim_dir, stylelint_dir, vimrc_dir string
 	homepath := getHomePath()
 
-	eslint_dir = homepath + "dev/configs/eslint/"
-	ghostty_dir = homepath + "dev/configs/ghostty/"
-	nvim_dir = homepath + ".config/nvim/"
-	stylelint_dir = homepath + "dev/configs/stylelint/"
-	vimrc_dir = homepath + "dev/configs/vim/"
+	eslint_dir = homepath + "/dev/configs/eslint/"
+	ghostty_dir = homepath + "/dev/configs/ghostty/"
+	nvim_dir = homepath + "/.config/nvim/"
+	stylelint_dir = homepath + "/dev/configs/stylelint/"
+	vimrc_dir = homepath + "/dev/configs/vim/"
 
 	return []string{
 		eslint_dir,
