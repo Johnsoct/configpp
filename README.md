@@ -9,3 +9,4 @@ I use Ghostty as my terminal, and vim/Nvim for the majority of my code editing; 
 ## Missing features
 
 - [ ] Pass a flag to choose between pulling from GitHub and pushing to GitHub (plus copying configs to their final destination for each differing git operation)
+askldjaslkdjf
