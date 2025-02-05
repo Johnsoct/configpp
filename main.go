@@ -80,7 +80,6 @@ func getConfigs(dirs []string) ([]error, []error) {
 	}
 
 	return statusErrors, pullErrors
-<<<<<<< Updated upstream
 }
 
 func getGhosttyDestination() string {
@@ -93,8 +92,6 @@ func getGhosttyDestination() string {
 	}
 
 	return destination
-=======
->>>>>>> Stashed changes
 }
 
 func getGitStatus(dir string) ([]byte, error) {
@@ -108,18 +105,9 @@ func getGitStatus(dir string) ([]byte, error) {
 	// NOTE: not checking for untracked files because we're rebasing on pull
 	uncommittedText := "Changes not staged for commit:"
 	uncommittedCheck := strings.Contains(string(Stdout), uncommittedText)
-<<<<<<< Updated upstream
-=======
-	untrackedText := "Untracked files:"
-	untrackedCheck := strings.Contains(string(Stdout), untrackedText)
->>>>>>> Stashed changes
 
 	if uncommittedCheck {
 		return nil, errors.New("Changes need to be committed in" + dir)
-	}
-
-	if untrackedCheck {
-		return nil, errors.New("Untracked files" + dir)
 	}
 
 	return Stdout, nil
