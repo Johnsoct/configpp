@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	OS = runtime.GOOS
+	OS              = runtime.GOOS
+	UncommittedText = "Changes not staged for commit:"
 )
 
 func chdir(dir string) {
@@ -103,10 +104,7 @@ func getGitStatus(dir string) ([]byte, error) {
 	}
 
 	// NOTE: not checking for untracked files because we're rebasing on pull
-	uncommittedText := "Changes not staged for commit:"
-	uncommittedCheck := strings.Contains(string(Stdout), uncommittedText)
-
-	if uncommittedCheck {
+	if strings.Contains(string(Stdout), UncommittedText) {
 		return nil, errors.New("Changes need to be committed in" + dir)
 	}
 
@@ -134,15 +132,25 @@ func getPullDirs() []string {
 	}
 }
 
+func gitStashBegin() {
+	exec.Command("git", "stash").Run()
+}
+
+func gitStashEnd() {
+	exec.Command("git", "stash", "apply").Run()
+	exec.Command("git", "stash", "clear").Run()
+}
+
 func pullFromGit(dir string) ([]byte, error) {
 	chdir(dir)
 
-	Stdout, Stderr := exec.Command("git", "pull", "--rebase").Output()
-	if Stderr != nil {
-		return nil, Stderr
-	}
+	gitStashBegin()
 
-	return Stdout, nil
+	Stdout, Stderr := exec.Command("git", "pull", "--rebase").Output()
+
+	gitStashEnd()
+
+	return Stdout, Stderr
 }
 
 func replaceTildeInPath(path string) (string, error) {

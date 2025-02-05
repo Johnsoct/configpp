@@ -19,6 +19,14 @@ type InputOutput struct {
 	output string
 }
 
+func cleanWorkingTree() {
+	exec.Command("git", "reset", "--hard").Run()
+}
+
+func dirtyWorkingTree() {
+	exec.Command("echo", "'Dirty that working tree! Work it!'", ">>", "README.md").Run()
+}
+
 func TestChdir(t *testing.T) {
 	home := getHomePath()
 	tests := []InputOutput{
@@ -181,7 +189,8 @@ func TestGetGitStatus(t *testing.T) {
 	// Happy path
 
 	chdir(path)
-	exec.Command("git", "stash").Run()
+
+	gitStashBegin()
 
 	stdout, stderr := getGitStatus(path)
 	if stderr != nil {
@@ -193,22 +202,24 @@ func TestGetGitStatus(t *testing.T) {
 		t.Errorf("Expected getGitStatus() to contain [%s], but it returned [%s]", happyPath, stdoutString)
 	}
 
-	exec.Command("git", "stash", "apply").Run()
-	exec.Command("git", "stash", "clear").Run()
+	gitStashEnd()
 
 	// Sad path
 
-	exec.Command("git", "stash").Run()
-	exec.Command("echo", "'test'", ">>", "README.md").Run()
+	gitStashBegin()
+	dirtyWorkingTree()
 
-	_, stderr = getGitStatus(path)
-	if stderr == nil {
-		t.Error("Expected getGitStatus() to throw an error")
+	stdout, stderr = getGitStatus(path)
+	if stderr != nil {
+		t.Error("Unexpected getGitStatus() to throw an error")
 	}
 
-	exec.Command("git", "reset", "--hard").Run() // scary
-	exec.Command("git", "stash", "apply").Run()
-	exec.Command("git", "stash", "clear").Run()
+	if strings.Contains(string(stdout), "untracked files") {
+		t.Error("Expected getGetStatus() to return untracked files", stdout)
+	}
+
+	cleanWorkingTree()
+	gitStashEnd()
 }
 
 func TestGetPullDirs(t *testing.T) {
@@ -224,17 +235,31 @@ func TestGetPullDirs(t *testing.T) {
 }
 
 func TestPullFromGit(t *testing.T) {
-	tests := []InputOutput{
-		{input: getHomePath() + "/dev/configpp", output: "Already up to date."},
+	path := getHomePath() + "/dev/configpp"
+
+	// Happy path - clear all changes from git status
+
+	gitStashBegin()
+
+	_, stderr := pullFromGit(path)
+	if stderr != nil {
+		t.Errorf("There was an unexpected error from pullFromGit(): [%s]", stderr.Error())
 	}
 
-	for _, v := range tests {
-		_, stderr := pullFromGit(v.input)
+	gitStashEnd()
 
-		if stderr != nil {
-			t.Error("There was an unexpected error from pullFromGit()")
-		}
+	// Sad path - create uncommitted changes to dirty the working tree to prevent pulling
+
+	gitStashBegin()
+	dirtyWorkingTree()
+
+	_, stderr = pullFromGit(path)
+	if stderr == nil {
+		t.Errorf("Error expected from pullFromGit()")
 	}
+
+	cleanWorkingTree()
+	gitStashEnd()
 }
 
 func TestGetHomePath(t *testing.T) {
