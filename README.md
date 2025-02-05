@@ -8,7 +8,9 @@ I use Ghostty as my terminal, and vim/Nvim for the majority of my code editing; 
 
 ## Missing features
 
+- [ ] Everything from [Review after "v1"](#review-after-"v1")
 - [ ] Pass a flag to choose between pulling from GitHub and pushing to GitHub (plus copying configs to their final destination for each differing git operation)
+- [ ] Happy/Sad path logic needs implemented in the actual program functions instead of implementing the state for happy path and testing an error is not returned and implementing the state for sad path and testing an error is returned... We should always test that an error isn't returned because the actual function we're testing is handling the sad path cases
 
 ## Review after "v1"
 
