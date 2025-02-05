@@ -203,7 +203,7 @@ func TestGetGitStatus(t *testing.T) {
 
 	_, stderr = getGitStatus(path)
 	if stderr == nil {
-		t.Errorf("Expected getGitStatus() to throw an error")
+		t.Error("Expected getGitStatus() to throw an error")
 	}
 
 	exec.Command("git", "reset", "--hard").Run() // scary
