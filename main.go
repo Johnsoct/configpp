@@ -32,7 +32,7 @@ func chdir(dir string) {
 
 	cherr := os.Chdir(local_dir)
 	if cherr != nil {
-		fmt.Println("Error changing directory", cherr)
+		fmt.Fprintf(os.Stderr, "Error changing directory: [%v]", cherr)
 	}
 }
 
@@ -76,7 +76,6 @@ func getConfigs() ([]error, []error) {
 
 		_, pullError := pullFromGit(dir)
 		if pullError != nil {
-			fmt.Println(pullError)
 			pullErrors = append(pullErrors, pullError)
 		}
 	}
@@ -160,9 +159,9 @@ func replaceTildeInPath(path string) string {
 func main() {
 	statusErrors, pullErrors := getConfigs()
 	if statusErrors != nil {
-		fmt.Fprintf(os.Stderr, "Error checking git status: %v\n", statusErrors)
+		fmt.Fprintf(os.Stderr, "Errors checking git status: %v\n", statusErrors)
 	} else if pullErrors != nil {
-		fmt.Fprintf(os.Stderr, "Error pulling from git: %v\n", pullErrors)
+		fmt.Fprintf(os.Stderr, "Errors pulling from git: %v\n", pullErrors)
 	}
 
 	cpConfigs()
