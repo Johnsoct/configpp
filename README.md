@@ -11,6 +11,9 @@ I use Ghostty as my terminal, and vim/Nvim for the majority of my code editing; 
 - [ ] Everything from [Review after "v1"](#review-after-"v1")
 - [ ] Pass a flag to choose between pulling from GitHub and pushing to GitHub (plus copying configs to their final destination for each differing git operation)
 - [x] Happy/Sad path logic needs implemented in the actual program functions instead of implementing the state for happy path and testing an error is not returned and implementing the state for sad path and testing an error is returned... We should always test that an error isn't returned because the actual function we're testing is handling the sad path cases
+- [ ] Nvim needs to at some point be copied from ~/.config to ~/dev/configs/nvim
+- [ ] Ghostty needs to at some point be copied from ~/GhosttyDest to ~/dev/configs/ghostty
+- [ ] Vimrc needs to at some point be copied from ~/ to ~/dev/configs
 
 ## Review after "v1"
 
