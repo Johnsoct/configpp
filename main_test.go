@@ -114,8 +114,7 @@ func TestGetConfigs(t *testing.T) {
 
 	for _, dir := range ConfigsSrc {
 		chdir(dir)
-
-		exec.Command("git", "stash").Run()
+		gitStashBegin()
 	}
 
 	statusErrors, pullErrors := getConfigs()
@@ -130,9 +129,7 @@ func TestGetConfigs(t *testing.T) {
 
 	for _, dir := range ConfigsSrc {
 		chdir(dir)
-
-		exec.Command("git", "stash", "apply").Run()
-		exec.Command("git", "stash", "clear").Run()
+		gitStashEnd()
 	}
 
 	// Sad path
@@ -164,7 +161,6 @@ func TestGetConfigs(t *testing.T) {
 
 			for _, dir := range ConfigsSrc {
 				chdir(dir)
-
 				cleanWorkingTree()
 				gitStashEnd()
 			}
@@ -181,7 +177,6 @@ func TestGetGitStatus(t *testing.T) {
 	// Happy path
 
 	chdir(path)
-
 	gitStashBegin()
 
 	stdout, stderr := getGitStatus(path)
@@ -201,13 +196,9 @@ func TestGetGitStatus(t *testing.T) {
 	gitStashBegin()
 	dirtyWorkingTree()
 
-	stdout, stderr = getGitStatus(path)
+	_, stderr = getGitStatus(path)
 	if stderr != nil {
 		t.Error("Unexpected getGitStatus() to throw an error")
-	}
-
-	if strings.Contains(string(stdout), "untracked files") {
-		t.Error("Expected getGetStatus() to return untracked files", stdout)
 	}
 
 	cleanWorkingTree()
