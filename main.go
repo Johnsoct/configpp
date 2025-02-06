@@ -28,10 +28,7 @@ var (
 )
 
 func chdir(dir string) {
-	local_dir, err := replaceTildeInPath(dir)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error replacing the tilde in dir; dir: %s; error: %v", dir, err)
-	}
+	local_dir := replaceTildeInPath(dir)
 
 	cherr := os.Chdir(local_dir)
 	if cherr != nil {
@@ -120,10 +117,10 @@ func getGitStatus(dir string) ([]byte, error) {
 }
 
 func getHomePath() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "User's home directory could not be retrieved!")
-	}
+	// NOTE: I am not worrying about the possibility of an error because
+	// none of my machines, in reality or theoretical, could operate without
+	// $HOME set
+	home, _ := os.UserHomeDir()
 
 	return home
 }
@@ -149,7 +146,7 @@ func pullFromGit(dir string) ([]byte, error) {
 	return Stdout, Stderr
 }
 
-func replaceTildeInPath(path string) (string, error) {
+func replaceTildeInPath(path string) string {
 	local_path := path
 	indexOfTilde := strings.IndexRune(local_path, '~')
 
@@ -157,7 +154,7 @@ func replaceTildeInPath(path string) (string, error) {
 		local_path = getHomePath() + local_path[indexOfTilde+1:]
 	}
 
-	return local_path, nil
+	return local_path
 }
 
 func main() {

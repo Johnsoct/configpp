@@ -4,7 +4,6 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -51,7 +50,6 @@ func TestChdir(t *testing.T) {
 
 // TODO:
 // func TestCPConfigs(t *testing.T) {
-// 	dirs := getPullDirs()
 // }
 
 func TestCPGhosttyConfig(t *testing.T) {
@@ -60,12 +58,11 @@ func TestCPGhosttyConfig(t *testing.T) {
 	// modify my ghostty config file
 	fakeGhosttyFile := "config_test"
 	ghosttyDestination := getGhosttyDestination()
-	ghosttySrc := getPullDirs()[0] + "ghostty/"
 
-	chdir(ghosttySrc)
+	chdir(GhosttySrc)
 	exec.Command("touch", fakeGhosttyFile).Run()
 
-	_, cpError := cpGhosttyConfig(ghosttySrc + fakeGhosttyFile)
+	_, cpError := cpGhosttyConfig(GhosttySrc + "/" + fakeGhosttyFile)
 	if cpError != nil {
 		t.Errorf("There was a `cp` error [%v]", cpError)
 		t.FailNow()
@@ -77,7 +74,7 @@ func TestCPGhosttyConfig(t *testing.T) {
 		t.Errorf("There was an error running `ls` [%v]", stderr)
 	}
 
-	chdir(ghosttySrc)
+	chdir(GhosttySrc)
 	exec.Command("rm", fakeGhosttyFile).Run()
 
 	chdir(ghosttyDestination)
@@ -89,43 +86,39 @@ func TestCPVimConfig(t *testing.T) {
 	// the copied file can be removed within the test and I don't have to
 	// modify my vim config file
 	fakeVimFile := ".vimrc_test"
-	vimDestination := getHomePath()
-	vimSrc := getPullDirs()[0] + "vim/"
 
-	chdir(vimSrc)
+	chdir(VimSrc)
 	exec.Command("touch", fakeVimFile).Run()
 
-	_, cpError := cpVimConfig(vimSrc + fakeVimFile)
+	_, cpError := cpVimConfig(VimSrc + "/" + fakeVimFile)
 	if cpError != nil {
 		t.Errorf("There was a `cp` error [%v]", cpError)
 		t.FailNow()
 	}
 
-	chdir(vimDestination)
+	chdir(VimDest)
 	_, stderr := exec.Command("ls", fakeVimFile).Output()
 	if stderr != nil {
 		t.Errorf("There was an error running `ls` [%v]", stderr)
 	}
 
-	chdir(vimSrc)
+	chdir(VimSrc)
 	exec.Command("rm", fakeVimFile).Run()
 
-	chdir(vimDestination)
+	chdir(VimDest)
 	exec.Command("rm", fakeVimFile).Run()
 }
 
 func TestGetConfigs(t *testing.T) {
-	dirs := getPullDirs()
-
 	// Happy path
 
-	for _, dir := range dirs {
+	for _, dir := range ConfigsSrc {
 		chdir(dir)
 
 		exec.Command("git", "stash").Run()
 	}
 
-	statusErrors, pullErrors := getConfigs(dirs)
+	statusErrors, pullErrors := getConfigs()
 
 	if len(statusErrors) != 0 {
 		t.Error("There were git status errors", statusErrors)
@@ -135,7 +128,7 @@ func TestGetConfigs(t *testing.T) {
 		t.Error("There were git pull errors", pullErrors)
 	}
 
-	for _, dir := range dirs {
+	for _, dir := range ConfigsSrc {
 		chdir(dir)
 
 		exec.Command("git", "stash", "apply").Run()
@@ -144,7 +137,7 @@ func TestGetConfigs(t *testing.T) {
 
 	// Sad path
 
-	for _, dir := range dirs {
+	for _, dir := range ConfigsSrc {
 		chdir(dir)
 
 		// NOTE: if there aren't changes upstream, "Already up to date" is returned
@@ -156,10 +149,10 @@ func TestGetConfigs(t *testing.T) {
 		}
 
 		if strings.Contains(string(stdout), "Your branch is behind 'origin/") {
-			exec.Command("git", "stash").Run()
-			exec.Command("echo", "'New Change'", ">>", "test.txt").Run()
+			gitStashBegin()
+			dirtyWorkingTree()
 
-			statusErrors, pullErrors = getConfigs(dirs)
+			statusErrors, pullErrors = getConfigs()
 
 			if len(statusErrors) == 0 {
 				t.Error("There were git status errors", statusErrors)
@@ -169,12 +162,11 @@ func TestGetConfigs(t *testing.T) {
 				t.Error("There were git pull errors", pullErrors)
 			}
 
-			for _, dir := range dirs {
+			for _, dir := range ConfigsSrc {
 				chdir(dir)
 
-				exec.Command("git", "reset", "--hard").Run()
-				exec.Command("git", "stash", "apply").Run()
-				exec.Command("git", "stash", "clear").Run()
+				cleanWorkingTree()
+				gitStashEnd()
 			}
 		} else {
 			// TODO: how do we handle sad path when there are no upstream changes???
@@ -222,18 +214,6 @@ func TestGetGitStatus(t *testing.T) {
 	gitStashEnd()
 }
 
-func TestGetPullDirs(t *testing.T) {
-	dirs := getPullDirs()
-
-	if dirs[0] != getHomePath()+"/dev/configs/" {
-		t.Error("getPullDirs() returned the wrong path for configs")
-	}
-
-	if dirs[1] != getHomePath()+"/.config/nvim/" {
-		t.Error("getPullDirs() returned the wrong path for nvim")
-	}
-}
-
 func TestPullFromGit(t *testing.T) {
 	path := getHomePath() + "/dev/configpp"
 
@@ -263,19 +243,15 @@ func TestPullFromGit(t *testing.T) {
 }
 
 func TestGetHomePath(t *testing.T) {
-	OS := runtime.GOOS
-
-	if OS == "linux" {
-		expect := "/home/" + USERNAME
-		path := getHomePath()
-		if path != expect {
-			t.Errorf("Homepath returned for Linux is incorrect")
-		}
-	} else if OS == "darwin" {
+	if OS == "darwin" {
 		expect := "/Users/" + USERNAME
-		path := getHomePath()
-		if path != expect {
+		if getHomePath() != expect {
 			t.Errorf("Homepath returned for Mac is incorrect")
+		}
+	} else {
+		expect := "/home/" + USERNAME
+		if getHomePath() != expect {
+			t.Errorf("Homepath returned for Linux is incorrect")
 		}
 	}
 }
@@ -284,14 +260,11 @@ func TestReplaceTildeInPath(t *testing.T) {
 	home := getHomePath()
 	tests := []InputOutput{
 		{input: "~/dev", output: home + "/dev"},
-		{input: "~/dev/configs/vim", output: home + "/dev/configs/vim"},
+		{input: "~/dev/configs/vim", output: VimSrc},
 	}
 
 	for _, v := range tests {
-		replaced, err := replaceTildeInPath(v.input)
-		if err != nil {
-			t.Error("There was an issue internally of replaceTildeInPath()")
-		}
+		replaced := replaceTildeInPath(v.input)
 
 		if replaced != v.output {
 			t.Errorf("Tilde in path was not replaced properly; test: %s; replaced: %s", v.input, replaced)
