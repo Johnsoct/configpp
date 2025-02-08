@@ -12,21 +12,61 @@ import (
 	"strings"
 )
 
+type Config struct {
+	destLinux string
+	destMac   string
+	src       string
+}
+
 var (
-	ConfigsSrc      = []string{getHomePath() + "/dev/configs"}
-	FlagCopy        = flag.Bool("c", false, "Copy local directory configurations to ~/dev/configs/")
-	EslintDest      = ConfigsSrc[0] + EslintSrc
-	EslintSrc       = ConfigsSrc[0] + "/eslint"
-	GhosttyDest     = []string{getHomePath(), getHomePath() + "/Library/Application Support/com.mitchellh.ghostty"}
-	GhosttySrc      = ConfigsSrc[0] + "/ghostty"
-	NvimDest        = getHomePath()
-	NvimSrc         = ConfigsSrc[0] + "/nvim"
-	OS              = runtime.GOOS
-	StylelintDest   = ConfigsSrc[0] + StylelintSrc
+	Alacritty = Config{
+		destLinux: getHomePath(),
+		destMac:   getHomePath(),
+		src:       ConfigsSrc[0] + "/alacritty",
+	}
+	ConfigsSrc = []string{getHomePath() + "/dev/configs"}
+	FlagCopy   = flag.Bool("c", false, "Copy local directory configurations to ~/dev/configs/")
+	Eslint     = Config{
+		destMac: ConfigsSrc[0] + "/eslint",
+		src:     ConfigsSrc[0] + "/eslint",
+	}
+	EslintDest = ConfigsSrc[0] + "/eslint"
+	EslintSrc  = ConfigsSrc[0] + "/eslint"
+	Ghostty    = Config{
+		destLinux: getHomePath(),
+		destMac:   getHomePath() + "/Library/Application Support/com.mitchellh.ghostty",
+		src:       ConfigsSrc[0] + "/ghostty",
+	}
+	GhosttyDest = []string{getHomePath(), getHomePath() + "/Library/Application Support/com.mitchellh.ghostty"}
+	GhosttySrc  = ConfigsSrc[0] + "/ghostty"
+	Nvim        = Config{
+		destLinux: getHomePath(),
+		destMac:   getHomePath(),
+		src:       ConfigsSrc[0] + "/nvim",
+	}
+	NvimDest  = getHomePath()
+	NvimSrc   = ConfigsSrc[0] + "/nvim"
+	OS        = runtime.GOOS
+	Stylelint = Config{
+		destLinux: ConfigsSrc[0] + "/stylelint",
+		destMac:   ConfigsSrc[0] + "/stylelint",
+		src:       ConfigsSrc[0] + "/stylelint",
+	}
+	StylelintDest   = ConfigsSrc[0] + "/stylelint"
 	StylelintSrc    = ConfigsSrc[0] + "/stylelint"
 	UncommittedText = "Changes not staged for commit:"
-	VimDest         = getHomePath()
-	VimSrc          = ConfigsSrc[0] + "/vim"
+	Vim             = Config{
+		destLinux: getHomePath(),
+		destMac:   getHomePath(),
+		src:       ConfigsSrc[0] + "/vim",
+	}
+	VimDest = getHomePath()
+	VimSrc  = ConfigsSrc[0] + "/vim"
+	Zellij  = Config{
+		destLinux: getHomePath(),
+		destMac:   getHomePath(),
+		src:       ConfigsSrc[0] + "/zellij",
+	}
 )
 
 func chdir(dir string) {
@@ -36,6 +76,10 @@ func chdir(dir string) {
 	if cherr != nil {
 		fmt.Fprintf(os.Stderr, "Error changing directory: [%v]", cherr)
 	}
+}
+
+func cpConfig(direction, whichConfig string) {
+
 }
 
 func cpConfigs() {
