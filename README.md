@@ -2,6 +2,11 @@
 
 After pulling and copying config files from various git repos and directories between my mac and linux machine over a hundred times, I decided to just write a go program that pulls down my configs from their respective local directories (respective of operating systems) and then copy those config files to their proper destinations.
 
+**Update (20250207)** 
+I don't want this app to push changes because I would prefer not to push generic messages for local changes or to build a CLI that asked you what you wanted to do and allowed you to commit each directory to git from this application.
+
+However, I don't think there's an issue with copying our local config to /dev/config so I can manually call the git CLI from within that directory to commit changes to git.
+
 ## Example
 
 I use Ghostty as my terminal, and vim/Nvim for the majority of my code editing; however, Ghostty stores its config in different places on Mac and Linux, and I didn't want to create a git repo in `~/Library/Application Support/com.mitchellh.ghostty/`, so I am storing two versions of my Ghostty config in `~/dev/configs/ghostty/`, which is kept updated in GitHub, and then after pulling those configs down, I copy them to their respective locations.
@@ -9,7 +14,6 @@ I use Ghostty as my terminal, and vim/Nvim for the majority of my code editing; 
 ## Missing features
 
 - [ ] Everything from [Review after "v1"](#review-after-"v1")
-- [ ] Pass a flag to choose between pulling from GitHub and pushing to GitHub (plus copying configs to their final destination for each differing git operation)
 - [x] Happy/Sad path logic needs implemented in the actual program functions instead of implementing the state for happy path and testing an error is not returned and implementing the state for sad path and testing an error is returned... We should always test that an error isn't returned because the actual function we're testing is handling the sad path cases
 - [ ] Nvim needs to at some point be copied from ~/.config to ~/dev/configs/nvim
 - [ ] Ghostty needs to at some point be copied from ~/GhosttyDest to ~/dev/configs/ghostty
