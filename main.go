@@ -4,6 +4,7 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,6 +14,7 @@ import (
 
 var (
 	ConfigsSrc      = []string{getHomePath() + "/dev/configs"}
+	FlagCopy        = flag.Bool("c", false, "Copy local directory configurations to ~/dev/configs/")
 	EslintDest      = ConfigsSrc[0] + EslintSrc
 	EslintSrc       = ConfigsSrc[0] + "/eslint"
 	GhosttyDest     = []string{getHomePath(), getHomePath() + "/Library/Application Support/com.mitchellh.ghostty"}
@@ -157,11 +159,17 @@ func replaceTildeInPath(path string) string {
 }
 
 func main() {
-	statusErrors, pullErrors := getConfigs()
-	if statusErrors != nil {
-		fmt.Fprintf(os.Stderr, "Errors checking git status: %v\n", statusErrors)
-	} else if pullErrors != nil {
-		fmt.Fprintf(os.Stderr, "Errors pulling from git: %v\n", pullErrors)
+	flag.Parse()
+
+	if *FlagCopy {
+		fmt.Println("Yay, you did it... yeah...")
+	} else {
+		statusErrors, pullErrors := getConfigs()
+		if len(statusErrors) != 0 {
+			fmt.Fprintf(os.Stderr, "Errors checking git status: %v\n", statusErrors)
+		} else if len(pullErrors) != 0 {
+			fmt.Fprintf(os.Stderr, "Errors pulling from git: %v\n", pullErrors)
+		}
 	}
 
 	cpConfigs()
