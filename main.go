@@ -97,7 +97,7 @@ func cpConfig(config Config, fromDestination bool) ([]byte, error) {
 	var src string
 	if fromDestination {
 		if config.dir {
-			dest = ConfigsSrc
+			dest = path.Dir(osSpecificDestination)
 		} else {
 			dest = config.localRepo
 		}
@@ -107,7 +107,7 @@ func cpConfig(config Config, fromDestination bool) ([]byte, error) {
 		src = config.localRepo
 	}
 
-	fmt.Printf("Src: %s | Dest: %s\n", src, dest)
+	// fmt.Printf("Src: %s | Dest: %s\n", src, dest)
 	rsync := exec.Command("rsync", "-arv", "--progress", src, dest, "--exclude", ".git")
 
 	var stderr error
