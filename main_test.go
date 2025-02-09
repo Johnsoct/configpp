@@ -49,12 +49,10 @@ func TestChdir(t *testing.T) {
 	}
 }
 
+// TEST: Missing tests when the target of cp/rsync is missing the directory
+// being targeted (in both directions)
+// Lines 121-127 of main.go
 func TestCPConfig(t *testing.T) {
-	Vim = Config{
-		dir:       false,
-		localDir:  []string{getHomePath() + "/.vimrc"},
-		localRepo: ConfigsSrc + "/vim/.vimrc",
-	}
 	baseDest := "/tmp"
 	baseSrc := replaceTildeInPath("~/dev/configpp")
 	fauxFile := "dummy.txt"
@@ -119,7 +117,7 @@ func TestCPConfig(t *testing.T) {
 	exec.Command("rm", localDir).Run()
 	exec.Command("rm", localRepo).Run()
 
-	// Sad path (bad local repo filepath)
+	// Sad path (to bad local repo filepath)
 
 	exec.Command("touch", localRepo).Run()
 
@@ -130,18 +128,16 @@ func TestCPConfig(t *testing.T) {
 
 	exec.Command("rm", localRepo).Run()
 
-	// Sad path (bad local dir filepath)
+	// Sad path (to bad local dir filepath)
 
 	exec.Command("touch", localDir).Run()
 
-	_, stderr = cpConfig(sadDestPath, true)
+	_, stderr = cpConfig(sadDestPath, false)
 	if stderr == nil {
 		t.Errorf("Expected an error copying with a bad dest filepath")
 	}
 
 	exec.Command("rm", localDir).Run()
-
-	// TODO: Sad path when destination doesn't have respective directory
 }
 
 func TestGetConfigs(t *testing.T) {

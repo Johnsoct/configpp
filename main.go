@@ -87,6 +87,15 @@ func chdir(dir string) {
 	}
 }
 
+// Copies a directory or file from one location to another via `rsync`.
+// Utilizes the current OS archiecture to discern the local directory.
+// Respects whether the user passed `-c` in the CLI call to discern
+// which direction to copy in.
+// Utilizing path.Dir to get the last directory of a path when the path
+// ends with a file, such as for Vim or Ghostty.
+// Excludes .git folders in local directories when copying.
+// Discerns whether the destination has the targeted directory when copying
+// a file instead of a directory.
 func cpConfig(config Config, fromDestination bool) ([]byte, error) {
 	osSpecificDestination := config.localDir[0]
 	if OS == "linux" {
