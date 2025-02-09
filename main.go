@@ -1,5 +1,5 @@
-// Script to pull my local vimrc, nvim, ghostty, prettier, stylelint, and eslint
-// configs from GitHub
+// Script to pull my alacritty, zellij, vimrc, nvim, ghostty, prettier, stylelint, and eslint
+// configs from GitHub to ~/dev/configs (src) and copy them to their local destinations
 package main
 
 import (
@@ -8,64 +8,66 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"runtime"
 	"strings"
 )
 
 type Config struct {
-	destLinux string
-	destMac   string
-	src       string
+	// NOTE: Mac destination at index 0
+	dest []string
+	src  string
 }
 
 var (
 	Alacritty = Config{
-		destLinux: getHomePath(),
-		destMac:   getHomePath(),
-		src:       ConfigsSrc[0] + "/alacritty",
+		dest: []string{getHomePath() + "/.config/alacritty"},
+		src:  ConfigsSrc + "/alacritty",
 	}
-	ConfigsSrc = []string{getHomePath() + "/dev/configs"}
+	ConfigsSrc = getHomePath() + "/dev/configs"
 	FlagCopy   = flag.Bool("c", false, "Copy local directory configurations to ~/dev/configs/")
 	Eslint     = Config{
-		destMac: ConfigsSrc[0] + "/eslint",
-		src:     ConfigsSrc[0] + "/eslint",
+		dest: []string{ConfigsSrc + "/eslint"},
+		src:  ConfigsSrc + "/eslint",
 	}
-	EslintDest = ConfigsSrc[0] + "/eslint"
-	EslintSrc  = ConfigsSrc[0] + "/eslint"
-	Ghostty    = Config{
-		destLinux: getHomePath(),
-		destMac:   getHomePath() + "/Library/Application Support/com.mitchellh.ghostty",
-		src:       ConfigsSrc[0] + "/ghostty",
+	Ghostty = Config{
+		dest: []string{getHomePath() + "/Library/Application Support/com.mitchellh.ghostty", getHomePath() + "/.config/ghostty"},
+		src:  ConfigsSrc + "/ghostty",
 	}
-	GhosttyDest = []string{getHomePath(), getHomePath() + "/Library/Application Support/com.mitchellh.ghostty"}
-	GhosttySrc  = ConfigsSrc[0] + "/ghostty"
-	Nvim        = Config{
-		destLinux: getHomePath(),
-		destMac:   getHomePath(),
-		src:       ConfigsSrc[0] + "/nvim",
+	Nvim = Config{
+		dest: []string{getHomePath() + "/.config/nvim"},
+		src:  ConfigsSrc + "/nvim",
 	}
-	NvimDest  = getHomePath()
-	NvimSrc   = ConfigsSrc[0] + "/nvim"
 	OS        = runtime.GOOS
 	Stylelint = Config{
-		destLinux: ConfigsSrc[0] + "/stylelint",
-		destMac:   ConfigsSrc[0] + "/stylelint",
-		src:       ConfigsSrc[0] + "/stylelint",
+		dest: []string{ConfigsSrc + "/stylelint"},
+		src:  ConfigsSrc + "/stylelint",
 	}
-	StylelintDest   = ConfigsSrc[0] + "/stylelint"
-	StylelintSrc    = ConfigsSrc[0] + "/stylelint"
 	UncommittedText = "Changes not staged for commit:"
 	Vim             = Config{
-		destLinux: getHomePath(),
-		destMac:   getHomePath(),
-		src:       ConfigsSrc[0] + "/vim",
+		dest: []string{getHomePath() + "/.vimrc"},
+		src:  ConfigsSrc + "vim/.vimrc",
 	}
-	VimDest = getHomePath()
-	VimSrc  = ConfigsSrc[0] + "/vim"
-	Zellij  = Config{
-		destLinux: getHomePath(),
-		destMac:   getHomePath(),
-		src:       ConfigsSrc[0] + "/zellij",
+	Zellij = Config{
+		dest: []string{getHomePath() + "/.config/zellij"},
+		src:  ConfigsSrc + "/zellij",
+	}
+
+	Configs = []Config{
+		Alacritty,
+		Eslint,
+		Ghostty,
+		Nvim,
+		Stylelint,
+		Vim,
+		Zellij,
+	}
+	ConfigsToCopy = []Config{
+		Alacritty,
+		Ghostty,
+		Nvim,
+		Vim,
+		Zellij,
 	}
 )
 
@@ -78,71 +80,61 @@ func chdir(dir string) {
 	}
 }
 
-func cpConfig(direction, whichConfig string) {
+func cpConfig(config Config, fromDestination bool) ([]byte, error) {
+	destination := config.dest[0]
+	if OS == "linux" {
+		destination = config.dest[1]
+	}
 
+	// TODO: ghostty and vim still not copying correctly
+	rsyncToDestination := exec.Command("rsync", "-arv", "--progress", config.src, path.Dir(destination), "--exclude", ".git")
+	rsyncToSrc := exec.Command("rsync", "-arv", "--progress", destination, path.Dir(config.src), "--exclude", ".git")
+
+	var stderr error
+	var stdout []byte
+	if !fromDestination {
+		stdout, stderr = rsyncToDestination.CombinedOutput()
+	} else {
+		target := path.Dir(config.src)
+
+		_, statErr := os.Stat(target)
+		if os.IsNotExist(statErr) {
+			fmt.Println(statErr)
+			// exec.Command("mkdir", path.Dir(config.src)).Run()
+		}
+
+		// stdout, stderr = exec.Command("cp", "-rv", destination, replaceTildeInPath(config.src)).CombinedOutput()
+		stdout, stderr = rsyncToSrc.CombinedOutput()
+	}
+
+	return stdout, stderr
 }
 
 func cpConfigs() {
-	ghosttyConfigName := getGhosttyConfigName()
+	for _, config := range ConfigsToCopy {
+		stdout, stderr := cpConfig(config, *FlagCopy)
 
-	_, copyError := cpGhosttyConfig(GhosttySrc + "/" + ghosttyConfigName)
-	if copyError != nil {
-		fmt.Fprintf(os.Stderr, "Error while copying ghostty's config from /configs %v\n", copyError)
+		if stderr != nil {
+			fmt.Fprintf(os.Stderr, "Error while copying config - %s\n", stdout)
+		}
 	}
-
-	_, copyError = cpVimConfig(VimSrc + "/.vimrc")
-	if copyError != nil {
-		fmt.Fprintf(os.Stderr, "Error while copying .vimrc from /configs %v\n", copyError)
-	}
-}
-
-func cpGhosttyConfig(filepath string) ([]byte, error) {
-	destination := getGhosttyDestination()
-
-	Stdout, Stderr := exec.Command("cp", filepath, destination).Output()
-
-	return Stdout, Stderr
-}
-
-func cpVimConfig(filepath string) ([]byte, error) {
-	Stdout, Stderr := exec.Command("cp", filepath, VimDest).Output()
-
-	return Stdout, Stderr
 }
 
 func getConfigs() ([]error, []error) {
 	pullErrors := make([]error, 0)
 	statusErrors := make([]error, 0)
 
-	for _, dir := range ConfigsSrc {
-		_, statusError := getGitStatus(dir)
-		if statusError != nil {
-			statusErrors = append(statusErrors, statusError)
-		}
+	_, statusError := getGitStatus(ConfigsSrc)
+	if statusError != nil {
+		statusErrors = append(statusErrors, statusError)
+	}
 
-		_, pullError := pullFromGit(dir)
-		if pullError != nil {
-			pullErrors = append(pullErrors, pullError)
-		}
+	_, pullError := pullFromGit(ConfigsSrc)
+	if pullError != nil {
+		pullErrors = append(pullErrors, pullError)
 	}
 
 	return statusErrors, pullErrors
-}
-
-func getGhosttyConfigName() string {
-	if OS == "darwin" {
-		return "mac_config"
-	} else {
-		return "config"
-	}
-}
-
-func getGhosttyDestination() string {
-	if OS == "darwin" {
-		return GhosttyDest[1]
-	} else {
-		return GhosttyDest[0]
-	}
 }
 
 func getGitStatus(dir string) ([]byte, error) {
@@ -206,7 +198,8 @@ func main() {
 	flag.Parse()
 
 	if *FlagCopy {
-		fmt.Println("Yay, you did it... yeah...")
+		// NOTE: Copy from local destinations to ~/dev/configpp/
+		cpConfigs()
 	} else {
 		statusErrors, pullErrors := getConfigs()
 		if len(statusErrors) != 0 {
@@ -214,7 +207,8 @@ func main() {
 		} else if len(pullErrors) != 0 {
 			fmt.Fprintf(os.Stderr, "Errors pulling from git: %v\n", pullErrors)
 		}
-	}
 
-	cpConfigs()
+		// NOTE: Copy from ~/dev/configpp/ to local destinations
+		cpConfigs()
+	}
 }

@@ -49,64 +49,92 @@ func TestChdir(t *testing.T) {
 }
 
 // TODO:
-// func TestCPConfigs(t *testing.T) {
-// }
+func TestCPConfig(t *testing.T) {
+	baseDest := "/tmp"
+	baseSrc := replaceTildeInPath("~/dev/configpp")
+	fauxFile := "dummy.txt"
+	dest := baseDest + "/" + fauxFile
+	src := baseSrc + "/" + fauxFile
 
-func TestCPGhosttyConfig(t *testing.T) {
-	// I'm going to copy from src to destination but with a different name so
-	// the copied file can be removed within the test and I don't have to
-	// modify my ghostty config file
-	fakeGhosttyFile := "config_test"
-	ghosttyDestination := getGhosttyDestination()
-
-	chdir(GhosttySrc)
-	exec.Command("touch", fakeGhosttyFile).Run()
-
-	_, cpError := cpGhosttyConfig(GhosttySrc + "/" + fakeGhosttyFile)
-	if cpError != nil {
-		t.Errorf("There was a `cp` error [%v]", cpError)
-		t.FailNow()
+	happyPath := Config{
+		destLinux: dest,
+		destMac:   dest,
+		src:       src,
+	}
+	sadSrcPath := Config{
+		destLinux: dest,
+		destMac:   dest,
+		src:       "~/dev/configpp/does-not-exist.txt",
+	}
+	sadDestPath := Config{
+		destLinux: dest + "badddddddd",
+		destMac:   dest + "badddddddd",
+		src:       src,
 	}
 
-	chdir(ghosttyDestination)
-	_, stderr := exec.Command("ls", fakeGhosttyFile).Output()
+	// Happy path (toDest)
+
+	exec.Command("touch", fauxFile).Run()
+
+	stdout, stderr := cpConfig(happyPath, true)
 	if stderr != nil {
-		t.Errorf("There was an error running `ls` [%v]", stderr)
+		t.Errorf("There was an unexpected error copying:\n%s\n", stdout)
 	}
 
-	chdir(GhosttySrc)
-	exec.Command("rm", fakeGhosttyFile).Run()
-
-	chdir(ghosttyDestination)
-	exec.Command("rm", fakeGhosttyFile).Run()
-}
-
-func TestCPVimConfig(t *testing.T) {
-	// I'm going to copy from src to destination but with a different name so
-	// the copied file can be removed within the test and I don't have to
-	// modify my vim config file
-	fakeVimFile := ".vimrc_test"
-
-	chdir(VimSrc)
-	exec.Command("touch", fakeVimFile).Run()
-
-	_, cpError := cpVimConfig(VimSrc + "/" + fakeVimFile)
-	if cpError != nil {
-		t.Errorf("There was a `cp` error [%v]", cpError)
-		t.FailNow()
-	}
-
-	chdir(VimDest)
-	_, stderr := exec.Command("ls", fakeVimFile).Output()
+	stdout, stderr = exec.Command("ls", baseDest).CombinedOutput()
 	if stderr != nil {
-		t.Errorf("There was an error running `ls` [%v]", stderr)
+		t.Errorf("There was an unexpected error checking the copy test result:\n%s\n", stdout)
 	}
 
-	chdir(VimSrc)
-	exec.Command("rm", fakeVimFile).Run()
+	if !strings.Contains(string(stdout), fauxFile) {
+		t.Errorf("The faux file was not found in the destination")
+	}
 
-	chdir(VimDest)
-	exec.Command("rm", fakeVimFile).Run()
+	exec.Command("rm", dest).Run()
+	exec.Command("rm", src).Run()
+
+	// Happy path (toSrc)
+
+	exec.Command("touch", dest).Run()
+
+	stdout, stderr = cpConfig(happyPath, false)
+	if stderr != nil {
+		t.Errorf("There was an unexpected error copying:\n%s\n", stdout)
+	}
+
+	stdout, stderr = exec.Command("ls", baseSrc).CombinedOutput()
+	if stderr != nil {
+		t.Errorf("There was an unexpected error checking the copy test result:\n%s\n", stdout)
+	}
+
+	if !strings.Contains(string(stdout), fauxFile) {
+		t.Errorf("The faux file was not found in the src")
+	}
+
+	exec.Command("rm", dest).Run()
+	exec.Command("rm", src).Run()
+
+	// Sad path (src filepath)
+
+	exec.Command("touch", src).Run()
+
+	_, stderr = cpConfig(sadSrcPath, true)
+	if stderr == nil {
+		t.Errorf("Expected an error copying with a bad src filepath")
+	}
+
+	exec.Command("rm", src).Run()
+
+	// Sad path (dest filepath)
+
+	exec.Command("touch", dest).Run()
+
+	_, stderr = cpConfig(sadDestPath, true)
+	if stderr == nil {
+		t.Errorf("Expected an error copying with a bad dest filepath")
+	}
+
+	exec.Command("rm", dest).Run()
 }
 
 func TestGetConfigs(t *testing.T) {
@@ -251,7 +279,7 @@ func TestReplaceTildeInPath(t *testing.T) {
 	home := getHomePath()
 	tests := []InputOutput{
 		{input: "~/dev", output: home + "/dev"},
-		{input: "~/dev/configs/vim", output: VimSrc},
+		{input: "~/dev/configs/vim", output: Vim.src},
 	}
 
 	for _, v := range tests {
