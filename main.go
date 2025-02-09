@@ -25,9 +25,9 @@ var (
 		localDir:  []string{getHomePath() + "/.config/alacritty"},
 		localRepo: ConfigsSrc + "/alacritty",
 	}
-	ConfigsSrc = getHomePath() + "/dev/configs"
-	FlagCopy   = flag.Bool("c", false, "Copy local directory configurations to ~/dev/configs/")
-	Eslint     = Config{
+	ConfigsSrc   = getHomePath() + "/dev/configs"
+	FlagUpstream = flag.Bool("u", false, "Copy local directory configurations to upstream ("+ConfigsSrc+")")
+	Eslint       = Config{
 		dir:       true,
 		localDir:  []string{ConfigsSrc + "/eslint"},
 		localRepo: ConfigsSrc + "/eslint",
@@ -96,32 +96,15 @@ func chdir(dir string) {
 // Excludes .git folders in local directories when copying.
 // Discerns whether the destination has the targeted directory when copying
 // a file instead of a directory.
-func cpConfig(config Config, fromDestination bool) ([]byte, error) {
-	osSpecificDestination := config.localDir[0]
-	if OS == "linux" {
-		osSpecificDestination = config.localDir[1]
-	}
-
-	var dest string
-	var src string
-	if fromDestination {
-		if config.dir {
-			dest = path.Dir(osSpecificDestination)
-		} else {
-			dest = config.localRepo
-		}
-		src = osSpecificDestination
-	} else {
-		dest = osSpecificDestination
-		src = config.localRepo
-	}
+func cpConfig(config Config, upstream bool) ([]byte, error) {
+	dest, src := getRsyncPaths(config, upstream)
 
 	// fmt.Printf("Src: %s | Dest: %s\n", src, dest)
 	rsync := exec.Command("rsync", "-arv", "--progress", src, dest, "--exclude", ".git")
 
 	var stderr error
 	var stdout []byte
-	if !fromDestination {
+	if !upstream {
 		stdout, stderr = rsync.CombinedOutput()
 	} else {
 		// NOTE: cp/rsync'ing directories will create the target directory if missing
@@ -193,6 +176,29 @@ func getHomePath() string {
 	return home
 }
 
+func getRsyncPaths(config Config, upstream bool) (string, string) {
+	osSpecificDestination := config.localDir[0]
+	if OS == "linux" {
+		osSpecificDestination = config.localDir[1]
+	}
+
+	var dest string
+	var src string
+	if upstream {
+		if config.dir {
+			dest = path.Dir(osSpecificDestination)
+		} else {
+			dest = config.localRepo
+		}
+		src = osSpecificDestination
+	} else {
+		dest = osSpecificDestination
+		src = config.localRepo
+	}
+
+	return dest, src
+}
+
 func gitStashBegin() {
 	exec.Command("git", "stash").Run()
 }
@@ -228,10 +234,10 @@ func replaceTildeInPath(path string) string {
 func main() {
 	flag.Parse()
 
-	if *FlagCopy {
-		// NOTE: Copy from local destinations to ~/dev/configpp/
+	if *FlagUpstream {
 		cpConfigs()
 	} else {
+		// Pull most recent changes from upstream (git)
 		statusErrors, pullErrors := getConfigs()
 		if len(statusErrors) != 0 {
 			fmt.Fprintf(os.Stderr, "Errors checking git status: %v\n", statusErrors)
@@ -239,7 +245,6 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Errors pulling from git: %v\n", pullErrors)
 		}
 
-		// NOTE: Copy from ~/dev/configpp/ to local destinations
 		cpConfigs()
 	}
 }
