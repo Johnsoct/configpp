@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path"
 	"strings"
 	"testing"
 )
@@ -48,56 +49,60 @@ func TestChdir(t *testing.T) {
 	}
 }
 
-// TODO:
 func TestCPConfig(t *testing.T) {
+	Vim = Config{
+		dir:       false,
+		localDir:  []string{getHomePath() + "/.vimrc"},
+		localRepo: ConfigsSrc + "/vim/.vimrc",
+	}
 	baseDest := "/tmp"
 	baseSrc := replaceTildeInPath("~/dev/configpp")
 	fauxFile := "dummy.txt"
-	dest := baseDest + "/" + fauxFile
-	src := baseSrc + "/" + fauxFile
+	localDir := baseDest + "/" + fauxFile
+	localRepo := baseSrc + "/" + fauxFile
 
 	happyPath := Config{
-		destLinux: dest,
-		destMac:   dest,
-		src:       src,
+		dir:       false,
+		localDir:  []string{localDir, localDir},
+		localRepo: localRepo,
 	}
 	sadSrcPath := Config{
-		destLinux: dest,
-		destMac:   dest,
-		src:       "~/dev/configpp/does-not-exist.txt",
+		dir:       false,
+		localDir:  []string{localDir, localDir},
+		localRepo: "~/dev/configpp/does-not-exist.txt",
 	}
 	sadDestPath := Config{
-		destLinux: dest + "badddddddd",
-		destMac:   dest + "badddddddd",
-		src:       src,
+		dir:       false,
+		localDir:  []string{localDir + "badddddddd", localDir + "badddddddd"},
+		localRepo: localRepo,
 	}
 
-	// Happy path (toDest)
+	// Happy path (to local dir)
 
-	exec.Command("touch", fauxFile).Run()
+	exec.Command("touch", localRepo).Run()
 
-	stdout, stderr := cpConfig(happyPath, true)
+	stdout, stderr := cpConfig(happyPath, false)
 	if stderr != nil {
 		t.Errorf("There was an unexpected error copying:\n%s\n", stdout)
 	}
 
-	stdout, stderr = exec.Command("ls", baseDest).CombinedOutput()
+	stdout, stderr = exec.Command("ls", path.Dir(happyPath.localDir[0])).CombinedOutput()
 	if stderr != nil {
 		t.Errorf("There was an unexpected error checking the copy test result:\n%s\n", stdout)
 	}
 
 	if !strings.Contains(string(stdout), fauxFile) {
-		t.Errorf("The faux file was not found in the destination")
+		t.Errorf("The faux file was not found")
 	}
 
-	exec.Command("rm", dest).Run()
-	exec.Command("rm", src).Run()
+	exec.Command("rm", localDir).Run()
+	exec.Command("rm", localRepo).Run()
 
-	// Happy path (toSrc)
+	// Happy path (to local repo)
 
-	exec.Command("touch", dest).Run()
+	exec.Command("touch", localDir).Run()
 
-	stdout, stderr = cpConfig(happyPath, false)
+	stdout, stderr = cpConfig(happyPath, true)
 	if stderr != nil {
 		t.Errorf("There was an unexpected error copying:\n%s\n", stdout)
 	}
@@ -108,42 +113,42 @@ func TestCPConfig(t *testing.T) {
 	}
 
 	if !strings.Contains(string(stdout), fauxFile) {
-		t.Errorf("The faux file was not found in the src")
+		t.Errorf("The faux file was not found")
 	}
 
-	exec.Command("rm", dest).Run()
-	exec.Command("rm", src).Run()
+	exec.Command("rm", localDir).Run()
+	exec.Command("rm", localRepo).Run()
 
-	// Sad path (src filepath)
+	// Sad path (bad local repo filepath)
 
-	exec.Command("touch", src).Run()
+	exec.Command("touch", localRepo).Run()
 
 	_, stderr = cpConfig(sadSrcPath, true)
 	if stderr == nil {
 		t.Errorf("Expected an error copying with a bad src filepath")
 	}
 
-	exec.Command("rm", src).Run()
+	exec.Command("rm", localRepo).Run()
 
-	// Sad path (dest filepath)
+	// Sad path (bad local dir filepath)
 
-	exec.Command("touch", dest).Run()
+	exec.Command("touch", localDir).Run()
 
 	_, stderr = cpConfig(sadDestPath, true)
 	if stderr == nil {
 		t.Errorf("Expected an error copying with a bad dest filepath")
 	}
 
-	exec.Command("rm", dest).Run()
+	exec.Command("rm", localDir).Run()
+
+	// TODO: Sad path when destination doesn't have respective directory
 }
 
 func TestGetConfigs(t *testing.T) {
 	// Happy path
 
-	for _, dir := range ConfigsSrc {
-		chdir(dir)
-		gitStashBegin()
-	}
+	chdir(ConfigsSrc)
+	gitStashBegin()
 
 	statusErrors, pullErrors := getConfigs()
 
@@ -155,46 +160,36 @@ func TestGetConfigs(t *testing.T) {
 		t.Error("There were git pull errors", pullErrors)
 	}
 
-	for _, dir := range ConfigsSrc {
-		chdir(dir)
-		gitStashEnd()
-	}
+	gitStashEnd()
 
 	// Sad path
 
-	for _, dir := range ConfigsSrc {
-		chdir(dir)
+	// NOTE: if there aren't changes upstream, "Already up to date" is returned
+	// regardless of what we stash/change
+	exec.Command("git", "fetch").Run()
+	stdout, stderr := exec.Command("git", "status").Output()
+	if stderr != nil {
+		t.Error("Unexpected error checking git status", stderr)
+	}
 
-		// NOTE: if there aren't changes upstream, "Already up to date" is returned
-		// regardless of what we stash/change
-		exec.Command("git", "fetch").Run()
-		stdout, stderr := exec.Command("git", "status").Output()
-		if stderr != nil {
-			t.Error("Unexpected error checking git status", stderr)
+	if strings.Contains(string(stdout), "Your branch is behind 'origin/") {
+		gitStashBegin()
+		dirtyWorkingTree()
+
+		statusErrors, pullErrors = getConfigs()
+
+		if len(statusErrors) == 0 {
+			t.Error("There were git status errors", statusErrors)
 		}
 
-		if strings.Contains(string(stdout), "Your branch is behind 'origin/") {
-			gitStashBegin()
-			dirtyWorkingTree()
-
-			statusErrors, pullErrors = getConfigs()
-
-			if len(statusErrors) == 0 {
-				t.Error("There were git status errors", statusErrors)
-			}
-
-			if len(pullErrors) == 0 {
-				t.Error("There were git pull errors", pullErrors)
-			}
-
-			for _, dir := range ConfigsSrc {
-				chdir(dir)
-				cleanWorkingTree()
-				gitStashEnd()
-			}
-		} else {
-			// TODO: how do we handle sad path when there are no upstream changes???
+		if len(pullErrors) == 0 {
+			t.Error("There were git pull errors", pullErrors)
 		}
+
+		cleanWorkingTree()
+		gitStashEnd()
+	} else {
+		// TODO: how do we handle sad path when there are no upstream changes???
 	}
 }
 
@@ -279,7 +274,7 @@ func TestReplaceTildeInPath(t *testing.T) {
 	home := getHomePath()
 	tests := []InputOutput{
 		{input: "~/dev", output: home + "/dev"},
-		{input: "~/dev/configs/vim", output: Vim.src},
+		{input: "~/dev/configs/vim", output: home + "/dev/configs/vim"},
 	}
 
 	for _, v := range tests {
