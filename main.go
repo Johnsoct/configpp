@@ -14,43 +14,50 @@ import (
 )
 
 type Config struct {
-	// NOTE: Mac destination at index 0
-	dest []string
-	src  string
+	dir       bool
+	localDir  []string // NOTE: Mac destination at index 0
+	localRepo string
 }
 
 var (
 	Alacritty = Config{
-		dest: []string{getHomePath() + "/.config/alacritty"},
-		src:  ConfigsSrc + "/alacritty",
+		dir:       true,
+		localDir:  []string{getHomePath() + "/.config/alacritty"},
+		localRepo: ConfigsSrc + "/alacritty",
 	}
 	ConfigsSrc = getHomePath() + "/dev/configs"
 	FlagCopy   = flag.Bool("c", false, "Copy local directory configurations to ~/dev/configs/")
 	Eslint     = Config{
-		dest: []string{ConfigsSrc + "/eslint"},
-		src:  ConfigsSrc + "/eslint",
+		dir:       true,
+		localDir:  []string{ConfigsSrc + "/eslint"},
+		localRepo: ConfigsSrc + "/eslint",
 	}
 	Ghostty = Config{
-		dest: []string{getHomePath() + "/Library/Application Support/com.mitchellh.ghostty", getHomePath() + "/.config/ghostty"},
-		src:  ConfigsSrc + "/ghostty",
+		dir:       false,
+		localDir:  []string{getHomePath() + "/Library/Application Support/com.mitchellh.ghostty/config", getHomePath() + "/.config/ghostty/config"},
+		localRepo: ConfigsSrc + "/ghostty/config",
 	}
 	Nvim = Config{
-		dest: []string{getHomePath() + "/.config/nvim"},
-		src:  ConfigsSrc + "/nvim",
+		dir:       true,
+		localDir:  []string{getHomePath() + "/.config/nvim"},
+		localRepo: ConfigsSrc + "/nvim",
 	}
 	OS        = runtime.GOOS
 	Stylelint = Config{
-		dest: []string{ConfigsSrc + "/stylelint"},
-		src:  ConfigsSrc + "/stylelint",
+		dir:       true,
+		localDir:  []string{ConfigsSrc + "/stylelint"},
+		localRepo: ConfigsSrc + "/stylelint",
 	}
 	UncommittedText = "Changes not staged for commit:"
 	Vim             = Config{
-		dest: []string{getHomePath() + "/.vimrc"},
-		src:  ConfigsSrc + "vim/.vimrc",
+		dir:       false,
+		localDir:  []string{getHomePath() + "/.vimrc"},
+		localRepo: ConfigsSrc + "/vim/.vimrc",
 	}
 	Zellij = Config{
-		dest: []string{getHomePath() + "/.config/zellij"},
-		src:  ConfigsSrc + "/zellij",
+		dir:       true,
+		localDir:  []string{getHomePath() + "/.config/zellij"},
+		localRepo: ConfigsSrc + "/zellij",
 	}
 
 	Configs = []Config{
@@ -81,30 +88,45 @@ func chdir(dir string) {
 }
 
 func cpConfig(config Config, fromDestination bool) ([]byte, error) {
-	destination := config.dest[0]
+	osSpecificDestination := config.localDir[0]
 	if OS == "linux" {
-		destination = config.dest[1]
+		osSpecificDestination = config.localDir[1]
 	}
 
-	// TODO: ghostty and vim still not copying correctly
-	rsyncToDestination := exec.Command("rsync", "-arv", "--progress", config.src, path.Dir(destination), "--exclude", ".git")
-	rsyncToSrc := exec.Command("rsync", "-arv", "--progress", destination, path.Dir(config.src), "--exclude", ".git")
+	var dest string
+	var src string
+	if fromDestination {
+		if config.dir {
+			dest = ConfigsSrc
+		} else {
+			dest = config.localRepo
+		}
+		src = osSpecificDestination
+	} else {
+		dest = osSpecificDestination
+		src = config.localRepo
+	}
+
+	fmt.Printf("Src: %s | Dest: %s\n", src, dest)
+	rsync := exec.Command("rsync", "-arv", "--progress", src, dest, "--exclude", ".git")
 
 	var stderr error
 	var stdout []byte
 	if !fromDestination {
-		stdout, stderr = rsyncToDestination.CombinedOutput()
+		stdout, stderr = rsync.CombinedOutput()
 	} else {
-		target := path.Dir(config.src)
-
-		_, statErr := os.Stat(target)
-		if os.IsNotExist(statErr) {
-			fmt.Println(statErr)
-			// exec.Command("mkdir", path.Dir(config.src)).Run()
+		// NOTE: cp/rsync'ing directories will create the target directory if missing
+		// but cp/rsync'ing a specific file to a non-existent directory fails
+		if !config.dir {
+			targetDirectory := path.Dir(dest)
+			_, statErr := os.Stat(targetDirectory)
+			if os.IsNotExist(statErr) {
+				fmt.Println(statErr)
+				exec.Command("mkdir", path.Dir(config.localRepo)).Run()
+			}
 		}
 
-		// stdout, stderr = exec.Command("cp", "-rv", destination, replaceTildeInPath(config.src)).CombinedOutput()
-		stdout, stderr = rsyncToSrc.CombinedOutput()
+		stdout, stderr = rsync.CombinedOutput()
 	}
 
 	return stdout, stderr
