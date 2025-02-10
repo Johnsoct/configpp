@@ -138,7 +138,7 @@ func createMissingTargetDirectory(config Config, dest string) {
 }
 
 func deleteLocalShareNvim() {
-	stdout, stderr := exec.Command("rm", "-rf", replaceTildeInPath("~/.local/share/nvim")).CombinedOutput()
+	_, stderr := exec.Command("rm", "-rf", replaceTildeInPath("~/.local/share/nvim")).CombinedOutput()
 
 	if stderr != nil {
 		fmt.Fprintf(os.Stderr, "There was an issue removing nvim's local share directory [%s]", stderr)
