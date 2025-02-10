@@ -26,3 +26,20 @@ I use Ghostty as my terminal, and vim/Nvim for the majority of my code editing; 
     - [ ] I could use the actual files, but I'd need to store the entire files in memory, remove them from their destinations, perform the copy, assert the existence and file contents match the file in memory
     - [ ] There'd have to be some failsafe, I think... However, the files are technically being copied and pulled from Git, where they'd be safe
 - [x] The one refactor I'd genuinely like to do is to change how paths were defined and configured so there wasn't confusion on whether one function returned paths with "/" at the end or not, such as `getPullDirs()` returning without "/" and then making the mistakes of trying to build path strings but forgetting to add "/" before the appending portion
+
+## Notes to self
+
+- When copying (or "rsyncing") directories, the destination path should not end with the directory you're copying.
+- You won't build something the most clearly, efficiently as possible on the first try. I probably changed the shape of the global variables in `main.go` three or four times before finding the least confusing, supportive structure.
+- When using `~` in `exec.Command`, Go does not unravel the meaning of the tilde; however, `os.UserHomeDir()` is the standard package version of the tilde for paths.
+- You cannot exclude files or subdirectories from the operation with `cp`, so I switched to `rsync`, which is a more verbose, powerful improvement.
+- The best places I found to make abstractions were:
+    - Where ease of writing test was increased
+    - A "parent" function became more digestible and readable
+- `exec.CombinedOutput()` "combines" the text-based error messages from failed/errornous commands into stdout so you can access []byte values representing CLI outputs and errors.
+- `stat` is pretty handy, but specifically how it can tell you whether a ... "stat'ed" is a file or directory.
+- Untracked files can be ignored with rebasing
+- "Upstream" and "downstream" were much better terms than "source" and "destination" in terms of copying because they retain understanding even if swapping the direction being copied in (ex. destination to source).
+- Reusing as many global functions and variables from the file you're testing saves a lot of time and bloat that could lead to innaccurate, problematic tests (i.e. writing custom Config variables vs using the ones defined in `main.go`).
+- Naming is important, which I knew, but man, once I changed key names from dest/src to localDir/localRepo, I was able to keep track of my own logic with a lot less effort.
+- Sometimes I think I'm a genius, but before long, my own code reminds me I am not.
