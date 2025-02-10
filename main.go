@@ -102,26 +102,15 @@ func cpConfig(config Config, upstream bool) ([]byte, error) {
 	// fmt.Printf("Src: %s | Dest: %s\n", src, dest)
 	rsync := exec.Command("rsync", "-arv", "--progress", src, dest, "--exclude", ".git")
 
-	var stderr error
-	var stdout []byte
 	if !upstream {
-		stdout, stderr = rsync.CombinedOutput()
+		return rsync.CombinedOutput()
 	} else {
 		// NOTE: cp/rsync'ing directories will create the target directory if missing
 		// but cp/rsync'ing a specific file to a non-existent directory fails
-		if !config.dir {
-			targetDirectory := path.Dir(dest)
-			_, statErr := os.Stat(targetDirectory)
-			if os.IsNotExist(statErr) {
-				fmt.Println(statErr)
-				exec.Command("mkdir", path.Dir(config.localRepo)).Run()
-			}
-		}
+		createMissingTargetDirectory(config, dest)
 
-		stdout, stderr = rsync.CombinedOutput()
+		return rsync.CombinedOutput()
 	}
-
-	return stdout, stderr
 }
 
 func cpConfigs() {
@@ -130,6 +119,17 @@ func cpConfigs() {
 
 		if stderr != nil {
 			fmt.Fprintf(os.Stderr, "Error while copying config - %s\n", stdout)
+		}
+	}
+}
+
+func createMissingTargetDirectory(config Config, dest string) {
+	if !config.dir {
+		targetDirectory := path.Dir(dest)
+		_, statErr := os.Stat(targetDirectory)
+		if os.IsNotExist(statErr) {
+			fmt.Println(statErr)
+			exec.Command("mkdir", path.Dir(config.localRepo)).Run()
 		}
 	}
 }
@@ -197,7 +197,7 @@ func getRsyncPaths(config Config, upstream bool) (string, string) {
 	var src string
 	if upstream {
 		if config.dir {
-			dest = path.Dir(destPathByOS)
+			dest = path.Dir(config.localRepo)
 		} else {
 			dest = config.localRepo
 		}
