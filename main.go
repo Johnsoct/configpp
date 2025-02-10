@@ -98,8 +98,8 @@ func chdir(dir string) {
 // a file instead of a directory.
 func cpConfig(config Config, upstream bool) ([]byte, error) {
 	dest, src := getRsyncPaths(config, upstream)
+	fmt.Printf("Copying [%s] to [%s]\n", src, dest)
 
-	// fmt.Printf("Src: %s | Dest: %s\n", src, dest)
 	rsync := exec.Command("rsync", "-arv", "--progress", src, dest, "--exclude", ".git")
 
 	if !upstream {
@@ -203,7 +203,7 @@ func getRsyncPaths(config Config, upstream bool) (string, string) {
 		}
 		src = destPathByOS
 	} else {
-		dest = destPathByOS
+		dest = path.Dir(destPathByOS)
 		src = config.localRepo
 	}
 
