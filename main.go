@@ -126,7 +126,7 @@ func cpConfig(config Config, upstream bool) ([]byte, error) {
 
 func cpConfigs() {
 	for _, config := range ConfigsToCopy {
-		stdout, stderr := cpConfig(config, *FlagCopy)
+		stdout, stderr := cpConfig(config, *FlagUpstream)
 
 		if stderr != nil {
 			fmt.Fprintf(os.Stderr, "Error while copying config - %s\n", stdout)
@@ -176,23 +176,34 @@ func getHomePath() string {
 	return home
 }
 
-func getRsyncPaths(config Config, upstream bool) (string, string) {
-	osSpecificDestination := config.localDir[0]
-	if OS == "linux" {
-		osSpecificDestination = config.localDir[1]
+func getLocalDirIndex() int {
+	if OS == "darwin" {
+		return 0
+	} else if OS == "linux" {
+		return 1
+	} else {
+		return 2
 	}
+}
+
+func getOSSpecificDestionationPath(config Config) string {
+	return config.localDir[getLocalDirIndex()]
+}
+
+func getRsyncPaths(config Config, upstream bool) (string, string) {
+	destPathByOS := getOSSpecificDestionationPath(config)
 
 	var dest string
 	var src string
 	if upstream {
 		if config.dir {
-			dest = path.Dir(osSpecificDestination)
+			dest = path.Dir(destPathByOS)
 		} else {
 			dest = config.localRepo
 		}
-		src = osSpecificDestination
+		src = destPathByOS
 	} else {
-		dest = osSpecificDestination
+		dest = destPathByOS
 		src = config.localRepo
 	}
 
