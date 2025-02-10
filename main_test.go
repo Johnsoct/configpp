@@ -140,6 +140,8 @@ func TestCPConfig(t *testing.T) {
 	exec.Command("rm", localDir).Run()
 }
 
+// TODO: test for createMissingTargetDirectory
+
 func TestGetConfigs(t *testing.T) {
 	// Happy path
 
@@ -260,7 +262,7 @@ func TestGetRsyncPaths(t *testing.T) {
 
 	tests := []RsyncTest{
 		// TEST: If copying upstream && config is a directory, dest == x
-		{config: Alacritty, upstream: true, target: "dest", expect: path.Dir(getOSSpecificDestionationPath(Alacritty))},
+		{config: Alacritty, upstream: true, target: "dest", expect: path.Dir(Alacritty.localRepo)},
 		// TEST: If copying upstream && config is not a directory, dest == x
 		{config: Vim, upstream: true, target: "dest", expect: Vim.localRepo},
 		// TEST: If copying upstream, src == x
