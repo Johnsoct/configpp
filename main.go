@@ -98,7 +98,8 @@ func chdir(dir string) {
 // a file instead of a directory.
 func cpConfig(config Config, upstream bool) ([]byte, error) {
 	dest, src := getRsyncPaths(config, upstream)
-	fmt.Printf("Copying [%s] to [%s]\n", src, dest)
+	fmt.Printf("-----------------------------------\n")
+	fmt.Printf("\nCopying [%s] to [%s]\n", src, dest)
 
 	rsync := exec.Command("rsync", "-arv", "--progress", src, dest, "--exclude", ".git")
 
@@ -119,6 +120,8 @@ func cpConfigs() {
 
 		if stderr != nil {
 			fmt.Fprintf(os.Stderr, "Error while copying config - %s\n", stdout)
+		} else {
+			fmt.Printf("\nRsync output: %s\n", stdout)
 		}
 	}
 }
