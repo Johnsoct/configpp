@@ -224,6 +224,70 @@ func TestGetGitStatus(t *testing.T) {
 	gitStashEnd()
 }
 
+func TestGetLocalDirIndex(t *testing.T) {
+	index := getLocalDirIndex()
+
+	if OS == "darwin" {
+		if index != 0 {
+			t.Error("Incorrect index returned for Mac devices")
+		}
+	} else if OS == "linux" {
+		if index != 1 {
+			t.Error("Incorrect index returned for Linux devices")
+		}
+	} else {
+		if index != 2 {
+			t.Error("Incorrect index returned for Other devices")
+		}
+	}
+}
+
+func TestGetOSSpecificDestinationPath(t *testing.T) {
+	path := getOSSpecificDestionationPath(Ghostty)
+
+	if path != Ghostty.localDir[getLocalDirIndex()] {
+		t.Errorf("Path received (%s) was not as expected (%s)", path, Ghostty.localDir[getLocalDirIndex()])
+	}
+}
+
+func TestGetRsyncPaths(t *testing.T) {
+	type RsyncTest struct {
+		config   Config
+		expect   string
+		target   string
+		upstream bool
+	}
+
+	tests := []RsyncTest{
+		// TEST: If copying upstream && config is a directory, dest == x
+		{config: Alacritty, upstream: true, target: "dest", expect: path.Dir(getOSSpecificDestionationPath(Alacritty))},
+		// TEST: If copying upstream && config is not a directory, dest == x
+		{config: Vim, upstream: true, target: "dest", expect: Vim.localRepo},
+		// TEST: If copying upstream, src == x
+		{config: Alacritty, upstream: true, target: "src", expect: getOSSpecificDestionationPath(Alacritty)},
+		// TEST: If copying downstream, dest == x
+		{config: Alacritty, upstream: false, target: "dest", expect: getOSSpecificDestionationPath(Alacritty)},
+		// TEST: If copying downstram, src == x
+		{config: Alacritty, upstream: false, target: "src", expect: Alacritty.localRepo},
+	}
+
+	for _, v := range tests {
+		dest, src := getRsyncPaths(v.config, v.upstream)
+
+		if v.target == "dest" {
+			if dest != v.expect {
+				t.Errorf("Rsync destination path (%s) not as expected (%s)", dest, v.expect)
+			}
+		}
+
+		if v.target == "src" {
+			if src != v.expect {
+				t.Errorf("Rsync source path (%s) not as expected (%s)", src, v.expect)
+			}
+		}
+	}
+}
+
 func TestPullFromGit(t *testing.T) {
 	path := getHomePath() + "/dev/configpp"
 
