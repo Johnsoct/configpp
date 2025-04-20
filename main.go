@@ -113,7 +113,7 @@ func cpConfig(config Config, upstream bool) ([]byte, error) {
 	if !upstream {
 		return rsync.CombinedOutput()
 	} else {
-		fmt.Printf("\n [%s] does not exist in [%s]; creating missing directory", src, dest)
+		fmt.Printf("\n [%s] does not exist in [%s]; creating missing directory", src, ConfigsSrc)
 
 		// NOTE: cp/rsync'ing directories will create the target directory if missing
 		// but cp/rsync'ing a specific file to a non-existent directory fails
@@ -143,7 +143,7 @@ func createMissingTargetDirectory(config Config, dest string) {
 		targetDirectory := path.Dir(dest)
 		_, statErr := os.Stat(targetDirectory)
 		if os.IsNotExist(statErr) {
-			fmt.Println(statErr)
+			fmt.Printf("\n[%s]", statErr)
 			exec.Command("mkdir", path.Dir(config.localRepo)).Run()
 		}
 	}
