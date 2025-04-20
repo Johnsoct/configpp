@@ -25,6 +25,12 @@ var (
 		localDir:  []string{getHomePath() + "/.config/alacritty"},
 		localRepo: ConfigsSrc + "/alacritty",
 	}
+	Bashrc = Config{
+		dir: false,
+
+		localDir:  []string{getHomePath() + "/.bashrc"},
+		localRepo: ConfigsSrc + "/bash/.bashrc",
+	}
 	ConfigsSrc   = getHomePath() + "/dev/configs"
 	FlagUpstream = flag.Bool("u", false, "Copy local directory configurations to upstream ("+ConfigsSrc+")")
 	Eslint       = Config{
@@ -71,6 +77,7 @@ var (
 	}
 	ConfigsToCopy = []Config{
 		Alacritty,
+		Bashrc,
 		Ghostty,
 		Nvim,
 		Vim,
@@ -109,6 +116,9 @@ func cpConfig(config Config, upstream bool) ([]byte, error) {
 		// NOTE: cp/rsync'ing directories will create the target directory if missing
 		// but cp/rsync'ing a specific file to a non-existent directory fails
 		createMissingTargetDirectory(config, dest)
+
+		exec.Command("git", "add", ".").Run()
+		exec.Command("git", "commit", "-m", "'Added new config directory and contents to git'").Run()
 
 		return rsync.CombinedOutput()
 	}
