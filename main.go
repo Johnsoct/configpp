@@ -119,9 +119,6 @@ func cpConfig(config Config, upstream bool) ([]byte, error) {
 		// but cp/rsync'ing a specific file to a non-existent directory fails
 		createMissingTargetDirectory(config, dest)
 
-		exec.Command("git", "add", ".").Run()
-		exec.Command("git", "commit", "-m", "'Added new config directory and contents to git'").Run()
-
 		return rsync.CombinedOutput()
 	}
 }
@@ -143,7 +140,7 @@ func createMissingTargetDirectory(config Config, dest string) {
 		targetDirectory := path.Dir(dest)
 		_, statErr := os.Stat(targetDirectory)
 		if os.IsNotExist(statErr) {
-			fmt.Printf("\n[%s]", statErr)
+			fmt.Printf("\n%s", statErr)
 			exec.Command("mkdir", path.Dir(config.localRepo)).Run()
 		}
 	}
@@ -272,6 +269,10 @@ func main() {
 
 	if *FlagUpstream {
 		cpConfigs()
+
+		exec.Command("git", "add", ".").Run()
+		exec.Command("git", "commit", "-m", "Updates to configs").Run()
+
 	} else {
 		// Pull most recent changes from upstream (git)
 		statusErrors, pullErrors := getConfigs()
