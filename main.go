@@ -113,6 +113,8 @@ func cpConfig(config Config, upstream bool) ([]byte, error) {
 	if !upstream {
 		return rsync.CombinedOutput()
 	} else {
+		fmt.Printf("\n [%s] does not exist in [%s]; creating missing directory", src, dest)
+
 		// NOTE: cp/rsync'ing directories will create the target directory if missing
 		// but cp/rsync'ing a specific file to a non-existent directory fails
 		createMissingTargetDirectory(config, dest)
