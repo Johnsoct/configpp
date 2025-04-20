@@ -270,9 +270,12 @@ func main() {
 	if *FlagUpstream {
 		cpConfigs()
 
-		fmt.Println("updating git")
+		fmt.Printf("\nUpdating Git from %s\n", ConfigsSrc)
+		chdir(ConfigsSrc)
 		exec.Command("git", "add", ".").Run()
 		exec.Command("git", "commit", "-m", "Updates to configs").Run()
+		exec.Command("git", "push").Run()
+		fmt.Println("Git updated")
 	} else {
 		// Pull most recent changes from upstream (git)
 		statusErrors, pullErrors := getConfigs()
