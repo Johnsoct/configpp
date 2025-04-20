@@ -31,17 +31,22 @@ var (
 		localDir:  []string{getHomePath() + "/.bashrc"},
 		localRepo: ConfigsSrc + "/bash/.bashrc",
 	}
-	ConfigsSrc   = getHomePath() + "/dev/configs"
-	FlagUpstream = flag.Bool("u", false, "Copy local directory configurations to upstream ("+ConfigsSrc+")")
-	Eslint       = Config{
+	ConfigsSrc = getHomePath() + "/dev/configs"
+	Eslint     = Config{
 		dir:       true,
 		localDir:  []string{ConfigsSrc + "/eslint"},
 		localRepo: ConfigsSrc + "/eslint",
 	}
+	FlagUpstream = flag.Bool("u", false, "Copy local directory configurations to upstream ("+ConfigsSrc+")")
+	FontPatcher  = Config{
+		dir:       true,
+		localDir:  []string{getHomePath() + "/dev/FontPatcher"},
+		localRepo: ConfigsSrc + "/fontpatcher",
+	}
 	Ghostty = Config{
-		dir:       false,
-		localDir:  []string{getHomePath() + "/Library/Application Support/com.mitchellh.ghostty/config", getHomePath() + "/.config/ghostty/config"},
-		localRepo: ConfigsSrc + "/ghostty/config",
+		dir:       true,
+		localDir:  []string{getHomePath() + "/Library/Application Support/com.mitchellh.ghostty", getHomePath() + "/.config/ghostty"},
+		localRepo: ConfigsSrc + "/ghostty",
 	}
 	Nvim = Config{
 		dir:       true,
@@ -68,18 +73,12 @@ var (
 
 	Configs = []Config{
 		Alacritty,
+		Bashrc,
 		Eslint,
+		FontPatcher,
 		Ghostty,
 		Nvim,
 		Stylelint,
-		Vim,
-		Zellij,
-	}
-	ConfigsToCopy = []Config{
-		Alacritty,
-		Bashrc,
-		Ghostty,
-		Nvim,
 		Vim,
 		Zellij,
 	}
@@ -113,8 +112,6 @@ func cpConfig(config Config, upstream bool) ([]byte, error) {
 	if !upstream {
 		return rsync.CombinedOutput()
 	} else {
-		fmt.Printf("\n [%s] does not exist in [%s]; creating missing directory", src, ConfigsSrc)
-
 		// NOTE: cp/rsync'ing directories will create the target directory if missing
 		// but cp/rsync'ing a specific file to a non-existent directory fails
 		createMissingTargetDirectory(config, dest)
@@ -124,7 +121,7 @@ func cpConfig(config Config, upstream bool) ([]byte, error) {
 }
 
 func cpConfigs() {
-	for _, config := range ConfigsToCopy {
+	for _, config := range Configs {
 		stdout, stderr := cpConfig(config, *FlagUpstream)
 
 		if stderr != nil {
@@ -140,6 +137,7 @@ func createMissingTargetDirectory(config Config, dest string) {
 		targetDirectory := path.Dir(dest)
 		_, statErr := os.Stat(targetDirectory)
 		if os.IsNotExist(statErr) {
+			fmt.Printf("\n [%s] does not exist in [%s]; creating missing directory", dest, ConfigsSrc)
 			fmt.Printf("\n%s", statErr)
 			exec.Command("mkdir", path.Dir(config.localRepo)).Run()
 		}
@@ -218,12 +216,14 @@ func getRsyncPaths(config Config, upstream bool) (string, string) {
 	var dest string
 	var src string
 	if upstream {
+		dest = config.localRepo
 		if config.dir {
-			dest = path.Dir(config.localRepo)
+			// NOTE: rsync will only copy the files inside of a directory if the source path
+			// ends in "/"
+			src = destPathByOS + "/"
 		} else {
-			dest = config.localRepo
+			src = destPathByOS
 		}
-		src = destPathByOS
 	} else {
 		dest = path.Dir(destPathByOS)
 		src = config.localRepo
