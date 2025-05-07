@@ -207,7 +207,11 @@ func getLocalDirIndex() int {
 }
 
 func getOSSpecificDestionationPath(config Config) string {
-	return config.localDir[getLocalDirIndex()]
+	if len(config.localDir) == 1 {
+		return config.localDir[0]
+	} else {
+		return config.localDir[getLocalDirIndex()]
+	}
 }
 
 func getRsyncPaths(config Config, upstream bool) (string, string) {
