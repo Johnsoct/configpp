@@ -25,6 +25,11 @@ var (
 		localDir:  []string{getHomePath() + "/.config/alacritty"},
 		localRepo: ConfigsSrc + "/alacritty",
 	}
+	Bashaliases = Config{
+		dir:       false,
+		localDir:  []string{getHomePath() + "/.bash_aliases"},
+		localRepo: ConfigsSrc + "/bash/.bash_aliases",
+	}
 	Bashrc = Config{
 		dir: false,
 
@@ -73,6 +78,7 @@ var (
 
 	Configs = []Config{
 		Alacritty,
+		Bashaliases,
 		Bashrc,
 		Eslint,
 		FontPatcher,
