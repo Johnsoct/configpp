@@ -261,15 +261,15 @@ func TestGetRsyncPaths(t *testing.T) {
 	}
 
 	tests := []RsyncTest{
-		// TEST: If copying upstream && config is a directory, dest == x
-		{config: Alacritty, upstream: true, target: "dest", expect: path.Dir(Alacritty.localRepo)},
-		// TEST: If copying upstream && config is not a directory, dest == x
+		// TEST: If copying upstream && config is a directory, dest == config localRepo including (copying the contents of src into dest)
+		{config: Alacritty, upstream: true, target: "dest", expect: Alacritty.localRepo},
+		// TEST: If copying upstream && config is not a directory, dest == configs root directory (copying local file to config dir root)
 		{config: Vim, upstream: true, target: "dest", expect: Vim.localRepo},
-		// TEST: If copying upstream, src == x
+		// TEST: If copying upstream && config is a directory, src == config.localDir + "/" (rsync only copies dir contents if dir ends "/")
 		{config: Alacritty, upstream: true, target: "src", expect: getOSSpecificDestionationPath(Alacritty) + "/"},
-		// TEST: If copying downstream, dest == x
-		// {config: Alacritty, upstream: false, target: "dest", expect: path.Dir(getOSSpecificDestionationPath(Alacritty))},
-		// TEST: If copying downstram, src == x
+		// TEST: If copying downstream && config is a directory, dest == config localDir - "config name"
+		{config: Alacritty, upstream: false, target: "dest", expect: path.Dir(getOSSpecificDestionationPath(Alacritty))},
+		// TEST: If copying downstram && config is a directory, src == config's localRepo in configs dir
 		{config: Alacritty, upstream: false, target: "src", expect: Alacritty.localRepo},
 	}
 
