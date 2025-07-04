@@ -266,7 +266,7 @@ func TestGetRsyncPaths(t *testing.T) {
 		// TEST: If copying upstream && config is not a directory, dest == x
 		{config: Vim, upstream: true, target: "dest", expect: Vim.localRepo},
 		// TEST: If copying upstream, src == x
-		{config: Alacritty, upstream: true, target: "src", expect: getOSSpecificDestionationPath(Alacritty)},
+		{config: Alacritty, upstream: true, target: "src", expect: getOSSpecificDestionationPath(Alacritty) + "/"},
 		// TEST: If copying downstream, dest == x
 		{config: Alacritty, upstream: false, target: "dest", expect: path.Dir(getOSSpecificDestionationPath(Alacritty))},
 		// TEST: If copying downstram, src == x
