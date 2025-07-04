@@ -145,7 +145,9 @@ func createMissingTargetDirectory(config Config, dest string) {
 		if os.IsNotExist(statErr) {
 			fmt.Printf("\n [%s] does not exist in [%s]; creating missing directory", dest, ConfigsSrc)
 			fmt.Printf("\n%s", statErr)
-			exec.Command("mkdir", path.Dir(config.localRepo)).Run()
+			if stderr := exec.Command("mkdir", path.Dir(config.localRepo)).Run(); stderr != nil {
+				fmt.Printf("\nThere was an error executing `mkdir %s`\n", path.Dir(config.localRepo))
+			}
 		}
 	}
 }
@@ -203,11 +205,12 @@ func getHomePath() string {
 }
 
 func getLocalDirIndex() int {
-	if OS == "darwin" {
+	switch OS {
+	case "darwin":
 		return 0
-	} else if OS == "linux" {
+	case "linux":
 		return 1
-	} else {
+	default:
 		return 2
 	}
 }
@@ -242,13 +245,39 @@ func getRsyncPaths(config Config, upstream bool) (string, string) {
 	return dest, src
 }
 
+func gitPush() {
+	fmt.Printf("\nUpdating Git from %s\n", ConfigsSrc)
+	chdir(ConfigsSrc)
+
+	if stderr := exec.Command("git", "add", ".").Run(); stderr != nil {
+		fmt.Printf("\nThere was an issue executing `git add .`\n")
+	}
+
+	if stderr := exec.Command("git", "commit", "-m", "Updates to configs").Run(); stderr != nil {
+		fmt.Printf("\nThere was an issue executing `git commit -m 'Updates to configs'`\n")
+	}
+
+	if stderr := exec.Command("git", "push").Run(); stderr != nil {
+		fmt.Printf("\nThere was an issue executing `git push`\n")
+	}
+
+	fmt.Println("Git updated")
+}
+
 func gitStashBegin() {
-	exec.Command("git", "stash").Run()
+	if stderr := exec.Command("git", "stash").Run(); stderr != nil {
+		fmt.Printf("\nThere was an error executing `git stash`\n")
+	}
 }
 
 func gitStashEnd() {
-	exec.Command("git", "stash", "apply").Run()
-	exec.Command("git", "stash", "clear").Run()
+	if stderr := exec.Command("git", "stash", "apply").Run(); stderr != nil {
+		fmt.Printf("\nThere was an error executing `git stash apply`\n")
+	}
+
+	if stderr := exec.Command("git", "stash", "clear").Run(); stderr != nil {
+		fmt.Printf("\nThere was an error executing `git stash clear`\n")
+	}
 }
 
 func pullFromGit(dir string) ([]byte, error) {
@@ -279,13 +308,7 @@ func main() {
 
 	if *FlagUpstream {
 		cpConfigs()
-
-		fmt.Printf("\nUpdating Git from %s\n", ConfigsSrc)
-		chdir(ConfigsSrc)
-		exec.Command("git", "add", ".").Run()
-		exec.Command("git", "commit", "-m", "Updates to configs").Run()
-		exec.Command("git", "push").Run()
-		fmt.Println("Git updated")
+		gitPush()
 	} else {
 		// Pull most recent changes from upstream (git)
 		statusErrors, pullErrors := getConfigs()
