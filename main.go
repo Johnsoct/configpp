@@ -13,9 +13,15 @@ import (
 	"strings"
 )
 
+/*
+ * Config
+ *
+ * `localDir` represents the local config directories, such as "~/.config/alacritty." Unlike `localRepo`, it is a slice because there may be different paths for the same config depending on whether the OS is Mac OSX or Linux.
+ * `localRepo` represents the local directory where all my dotfile directories are stored, which is typically ~/dev/configs/ + config.
+ */
 type Config struct {
 	dir       bool
-	localDir  []string // NOTE: Mac destination at index 0
+	localDir  []string
 	localRepo string
 }
 
@@ -90,6 +96,9 @@ var (
 	}
 )
 
+/*
+ * Sets the CWD to the provided directory.
+ */
 func chdir(dir string) {
 	local_dir := replaceTildeInPath(dir)
 
@@ -223,6 +232,17 @@ func getOSSpecificDestionationPath(config Config) string {
 	}
 }
 
+/*
+ * Returns the dest and src paths for a `rsync` operation.
+ *
+ * A "downstream" operation is when we pull from github, which correlates to:
+ * `config.localRepo` is our source path. This is our local Git repo of dotfile directories (~/dev/configs/).
+ * `config.localDir` is our destination path. This is our local config directories (~/.config/alacritty/)
+ *
+ * An "upstream" operation is when we push from our local Git repo of dotfile directories to GitHub:
+ * `config.localRepo` is our destination path. This is our local Git repo of dotfile directories (~/dev/configs/).
+ * `config.localDir` is our source path; however, if `localDir` is a directory, verse a single file, we append "/" since `rsync` only copies files inside of a directory if the path ends in "/". This is our local config directories (~/.config/alacritty/).
+ */
 func getRsyncPaths(config Config, upstream bool) (string, string) {
 	destPathByOS := getOSSpecificDestionationPath(config)
 
@@ -238,6 +258,7 @@ func getRsyncPaths(config Config, upstream bool) (string, string) {
 			src = destPathByOS
 		}
 	} else {
+		// dest should be the directory containing our target since we'll be overwriting it
 		dest = path.Dir(destPathByOS)
 		src = config.localRepo
 	}
@@ -245,31 +266,37 @@ func getRsyncPaths(config Config, upstream bool) (string, string) {
 	return dest, src
 }
 
-func gitPush() {
-	fmt.Printf("\nUpdating Git from %s\n", ConfigsSrc)
-	chdir(ConfigsSrc)
+/*
+ * Pushes to "origin" remote's "main" branch and prints the output.
+ */
+func gitPush(dir string) ([]byte, error) {
+	fmt.Printf("\nUpdating Git from %s\n", dir)
 
-	if stderr := exec.Command("git", "add", ".").Run(); stderr != nil {
-		fmt.Printf("\nThere was an issue executing `git add .`\n")
+	cmd := exec.Command("git", "push", "-u", "origin", "main")
+	cmd.Dir = dir
+
+	stdout, stderr := cmd.CombinedOutput()
+	if stderr != nil {
+		fmt.Printf("\n%v\n", stderr)
 	}
 
-	if stderr := exec.Command("git", "commit", "-m", "Updates to configs").Run(); stderr != nil {
-		fmt.Printf("\nThere was an issue executing `git commit -m 'Updates to configs'`\n")
-	}
+	fmt.Printf("%s", stdout)
 
-	if stderr := exec.Command("git", "push").Run(); stderr != nil {
-		fmt.Printf("\nThere was an issue executing `git push`\n")
-	}
-
-	fmt.Println("Git updated")
+	return stdout, stderr
 }
 
+/*
+ * Within the CWD, stashes the current working tree.
+ */
 func gitStashBegin() {
 	if stderr := exec.Command("git", "stash").Run(); stderr != nil {
 		fmt.Printf("\nThere was an error executing `git stash`\n")
 	}
 }
 
+/*
+ * Within the CWD, applies the latest stash.
+ */
 func gitStashEnd() {
 	if stderr := exec.Command("git", "stash", "apply").Run(); stderr != nil {
 		fmt.Printf("\nThere was an error executing `git stash apply`\n")
@@ -280,6 +307,12 @@ func gitStashEnd() {
 	}
 }
 
+/*
+ * Within the provided directory:
+ * 1. Stash the current working tree changes
+ * 2. Pull via rebase
+ * 3. Apply the latest stash
+ */
 func pullFromGit(dir string) ([]byte, error) {
 	chdir(dir)
 
@@ -292,6 +325,9 @@ func pullFromGit(dir string) ([]byte, error) {
 	return Stdout, Stderr
 }
 
+/*
+ * Replaces a "~" in a path with your local $HOME path variable value.
+ */
 func replaceTildeInPath(path string) string {
 	local_path := path
 	indexOfTilde := strings.IndexRune(local_path, '~')
@@ -308,7 +344,10 @@ func main() {
 
 	if *FlagUpstream {
 		cpConfigs()
-		gitPush()
+
+		if _, stderr := gitPush(ConfigsSrc); stderr != nil {
+			fmt.Fprintf(os.Stderr, "Error pushing to git: %v\n", stderr)
+		}
 	} else {
 		// Pull most recent changes from upstream (git)
 		statusErrors, pullErrors := getConfigs()
