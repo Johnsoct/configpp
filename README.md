@@ -7,6 +7,9 @@ I don't want this app to push changes because I would prefer not to push generic
 
 However, I don't think there's an issue with copying our local config to /dev/config so I can manually call the git CLI from within that directory to commit changes to git.
 
+**Update (20250703)**
+Not sure what changed my mind, but I added "upstream" functionality to push local changes to my local configs repo and then to git... It's great. No regret. I use it all the time.
+
 ## Example
 
 I use Ghostty as my terminal, and vim/Nvim for the majority of my code editing; however, Ghostty stores its config in different places on Mac and Linux, and I didn't want to create a git repo in `~/Library/Application Support/com.mitchellh.ghostty/`, so I am storing two versions of my Ghostty config in `~/dev/configs/ghostty/`, which is kept updated in GitHub, and then after pulling those configs down, I copy them to their respective locations.
@@ -18,6 +21,12 @@ I use Ghostty as my terminal, and vim/Nvim for the majority of my code editing; 
 - [x] Nvim needs to at some point be copied from ~/.config to ~/dev/configs/nvim
 - [x] Ghostty needs to at some point be copied from ~/GhosttyDest to ~/dev/configs/ghostty
 - [x] Vimrc needs to at some point be copied from ~/ to ~/dev/configs
+- [ ] .fzf needs to be added
+- [ ] Global node modules
+    - [ ] Need a list of modules to `npm i -g`
+    - [ ] Global node modules should be installed on pull down
+- [ ] Nerd fonts need added
+    - [ ] Should copy the fonts over to the relative directories for linux, darwin, and windows on pull down
 
 ## Review after "v1"
 
@@ -33,6 +42,7 @@ I use Ghostty as my terminal, and vim/Nvim for the majority of my code editing; 
 - You won't build something the most clearly, efficiently as possible on the first try. I probably changed the shape of the global variables in `main.go` three or four times before finding the least confusing, supportive structure.
 - When using `~` in `exec.Command`, Go does not unravel the meaning of the tilde; however, `os.UserHomeDir()` is the standard package version of the tilde for paths.
 - You cannot exclude files or subdirectories from the operation with `cp`, so I switched to `rsync`, which is a more verbose, powerful improvement.
+    - `rsync` requires a "/" after the directory you want to copy the contents from within (i.e. ~/dev/configs/)
 - The best places I found to make abstractions were:
     - Where ease of writing test was increased
     - A "parent" function became more digestible and readable
@@ -43,3 +53,4 @@ I use Ghostty as my terminal, and vim/Nvim for the majority of my code editing; 
 - Reusing as many global functions and variables from the file you're testing saves a lot of time and bloat that could lead to innaccurate, problematic tests (i.e. writing custom Config variables vs using the ones defined in `main.go`).
 - Naming is important, which I knew, but man, once I changed key names from dest/src to localDir/localRepo, I was able to keep track of my own logic with a lot less effort.
 - Sometimes I think I'm a genius, but before long, my own code reminds me I am not.
+- A "bare" git repository is a repository meant to serve a central repo for multiple developers, AKA your GitHub repos... They don't have worktrees or an index. Instead, a bare repo contains all the git data in the root instead of in a .git/.
