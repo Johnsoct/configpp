@@ -72,11 +72,13 @@ func gitCommit(dir string) {
  * 3 Removes remote git dir
 */
 func gitCreateSandbox(callback func(dir string)) {
+	// Our pseudo remote repository (i.e. GitHub)
 	remoteDir, err := os.MkdirTemp("", "remote_git_dir")
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// Our pseudo local "dev" repo
 	localInstallPath, err := os.MkdirTemp("", "local_git_dir")
 	if err != nil {
 		log.Fatal(err)
@@ -89,15 +91,36 @@ func gitCreateSandbox(callback func(dir string)) {
 	gitInitDirectory(localInstallPath, false)
 	gitLocalConfigDetails(localInstallPath)
 	gitSetRemote(localInstallPath, remoteDir)
+	gitInitialCommit(localInstallPath)
+	// Push is required to create the "main" branch on the remote
+	// and set tracking from the local to the remote
+	gitPush(localInstallPath)
 
 	callback(localInstallPath)
 }
 
 /*
+ * Modifies README.md, from the provided directory
+ */
+func gitDirtyRepoWithTrackedChange(dir string) {
+	executeCommand(dir, "bash", "-lc", "echo potatofart >> README.md")
+	// executeCommand(dir, "echo", "\"potatofart\"", ">>", "README.md")
+}
+
+/*
  * Creates an empty file, test.txt, from the provided directory
  */
-func gitDirtyLocalRepo(dir string) {
+func gitDirtyRepoWithUntrackedChange(dir string) {
 	executeCommand(dir, "touch", "test.txt")
+}
+
+/*
+ * Creates an empty commit from the provided directory
+ */
+func gitInitialCommit(dir string) {
+	executeCommand(dir, "touch", "README.md")
+	executeCommand(dir, "git", "add", "--all")
+	executeCommand(dir, "git", "commit", "-m", "init commit")
 }
 
 /*
@@ -106,6 +129,8 @@ func gitDirtyLocalRepo(dir string) {
  * For remote directories, pass `true` for `makeBare`.
  */
 func gitInitDirectory(dir string, makeBare bool) {
+	// Bare repo is just a .git directory until something is pushed
+	// so for "main" to exist, we need to push something
 	if makeBare {
 		executeCommand(dir, "git", "init", "--bare", "-b", "main")
 	} else {
@@ -128,6 +153,13 @@ func gitLocalConfigDetails(dir string) {
  */
 func gitSetRemote(localPath string, remotePath string) {
 	executeCommand(localPath, "git", "remote", "add", "origin", remotePath)
+}
+
+/*
+ * Sets the upstream of our local repo to the main branch of our remote directory.
+ */
+func gitSetUpstream(localPath string) {
+	executeCommand(localPath, "git", "branch", "--set-upstream-to=origin/main")
 }
 
 func TestChdir(t *testing.T) {
@@ -191,7 +223,7 @@ func TestCPConfig(t *testing.T) {
 	 * 5. If there is an error looking for the file in the test's destination, FAIL
 	 */
 
-	fmt.Printf("\n\nDownstream happy path\n")
+	fmt.Printf("\n\nTestCPConfig: Downstream happy path\n")
 
 	exec.Command("touch", localDotfilesRepoPath).Run()
 
@@ -222,7 +254,7 @@ func TestCPConfig(t *testing.T) {
 	 * 5. If there is an error looking for the file in the test's destination, FAIL
 	 */
 
-	fmt.Printf("\n\nUpstream happy path\n")
+	fmt.Printf("\n\nTestCPConfig: Upstream happy path\n")
 
 	exec.Command("touch", localInstallPath).Run()
 
@@ -251,7 +283,7 @@ func TestCPConfig(t *testing.T) {
 	 * 3. If there is an error copying, FAIL
 	 */
 
-	fmt.Printf("\n\nUpstream sad path\n")
+	fmt.Printf("\n\nTestCPConfig: Upstream sad path\n")
 
 	exec.Command("touch", localDotfilesRepoPath).Run()
 
@@ -271,7 +303,7 @@ func TestCPConfig(t *testing.T) {
 	 * 3. If there is an error copying, FAIL
 	 */
 
-	fmt.Printf("\n\nDownstream sad path\n")
+	fmt.Printf("\n\nTestCPConfig: Downstream sad path\n")
 
 	exec.Command("touch", localInstallPath).Run()
 
@@ -288,192 +320,229 @@ func TestCPConfig(t *testing.T) {
 // TEST: test for createMissingTargetDirectory
 func TestCreateMissingTargetDirectory(t *testing.T) {}
 
-// TODO: the test passed... I don't trust it
-// TODO: the test passed... I don't trust it
-// TODO: the test passed... I don't trust it
-// TODO: the test passed... I don't trust it
-// TODO: the test passed... I don't trust it
-// TODO: the test passed... I don't trust it
-// TODO: the test passed... I don't trust it
-// TODO: the test passed... I don't trust it
-// TODO: the test passed... I don't trust it
-func TestGetConfigs(t *testing.T) {
+func TestPullDownConfigs(t *testing.T) {
 	// Happy path - clean working tree, so there's no chance for errors
+	fmt.Printf("\n\nTestGetConfigs: Happy Path\n\n")
+
 	gitCreateSandbox(func(dir string) {
-		statusErrors, pullErrors := getConfigs(dir)
+		pullStderr, _ := pullDownConfigs(dir)
 
-		if len(statusErrors) != 0 {
-			t.Error("There were git status errors", statusErrors)
-		}
-
-		if len(pullErrors) != 0 {
-			t.Error("There were git pull errors", pullErrors)
+		if pullStderr != nil {
+			t.Error("There was a git pull error", pullStderr)
 		}
 	})
 
-	// Sad path - TBD???
-	gitCreateSandbox(func(dir string) {
-		statusErrors, pullErrors := getConfigs(dir)
+	// Sad path
+	// 1. fails if working tree is dirty
+	// 2. up-to-date with remote
+	fmt.Printf("\n\nTestGetConfigs: Sad Path\n\n")
 
-		// NOTE: if there aren't changes upstream, "Already up to date" is returned
-		// regardless of what we stash/change
-		exec.Command("git", "fetch").Run()
-		stdout, stderr := exec.Command("git", "status").Output()
-		if stderr != nil {
-			t.Error("Unexpected error checking git status", stderr)
+	gitCreateSandbox(func(dir string) {
+		// Better to clean up in case of a previously failed run
+		// than to assume this test case never fails
+		gitCleanWorkingTree(dir)
+
+		// 1: Working tree is dirty
+		// 1: Working tree is dirty
+		// 1: Working tree is dirty
+
+		// Status errors can be triggered by dirtying the working tree
+		// before attempting to pull
+		gitDirtyRepoWithUntrackedChange(dir)
+		gitAddAll(dir)
+
+		pullStderr, _ := pullDownConfigs(dir)
+
+		if pullStderr != nil && pullStderr.Error() != "exit status 128" {
+			t.Error("Expected pull errors when pulling from remote with a dirty working tree")
 		}
 
-		if strings.Contains(string(stdout), "Your branch is behind 'origin/") {
-			gitStashBegin()
-			// gitDirtyWorkingTree()
+		// 2: up-to-date with remote
+		// 2: up-to-date with remote
+		// 2: up-to-date with remote
 
-			statusErrors, pullErrors = getConfigs(dir)
+		gitCleanWorkingTree(dir)
 
-			if len(statusErrors) == 0 {
-				t.Error("There were git status errors", statusErrors)
-			}
+		pullStderr, pullStdout := pullDownConfigs(dir)
+		pullStdoutContains := strings.Contains(string(pullStdout), "Already up to date.")
 
-			if len(pullErrors) == 0 {
-				t.Error("There were git pull errors", pullErrors)
-			}
-
-			gitCleanWorkingTree(dir)
-		} else {
-			// TODO: how do we handle sad path when there are no upstream changes???
+		fmt.Printf("%s", pullStdout)
+		if pullStderr != nil || !pullStdoutContains {
+			t.Error("Expected 'Already up to date.' stdout pulling from remote while already up-to-date")
 		}
 	})
 }
 
-// func TestGetGitStatus(t *testing.T) {
-// 	happyPath := "nothing to commit, working tree clean"
-// 	path := getHomePath() + "/dev/configpp"
-//
-// 	// Happy path
-//
-// 	chdir(path)
-// 	gitStashBegin()
-//
-// 	stdout, stderr := gitStatus(path)
-// 	if stderr != nil {
-// 		t.Error("There was an error calling gitStatus()", stderr)
-// 	}
-//
-// 	stdoutString := string(stdout)
-// 	if !strings.Contains(stdoutString, happyPath) {
-// 		t.Errorf("Expected gitStatus() to contain [%s], but it returned [%s]", happyPath, stdoutString)
-// 	}
-//
-// 	gitStashEnd()
-//
-// 	// Sad path
-//
-// 	gitStashBegin()
-// 	// gitDirtyWorkingTree()
-//
-// 	_, stderr = gitStatus(path)
-// 	if stderr != nil {
-// 		t.Error("Unexpected gitStatus() to throw an error")
-// 	}
-//
-// 	gitCleanWorkingTree()
-// 	gitStashEnd()
-// }
+func TestGetGitStatus(t *testing.T) {
+	// Happy path - output contains "nothing to commit, working tree clean"
 
-// func TestGetLocalDirIndex(t *testing.T) {
-// 	index := getLocalDirIndex()
-//
-// 	if OS == "darwin" {
-// 		if index != 0 {
-// 			t.Error("Incorrect index returned for Mac devices")
-// 		}
-// 	} else if OS == "linux" {
-// 		if index != 1 {
-// 			t.Error("Incorrect index returned for Linux devices")
-// 		}
-// 	} else {
-// 		if index != 2 {
-// 			t.Error("Incorrect index returned for Other devices")
-// 		}
-// 	}
-// }
+	fmt.Printf("\n\nTestGetConfigs: Happy Path\n\n")
 
-// func TestGetOSSpecificDestinationPath(t *testing.T) {
-// 	path := getOSSpecificDestionationPath(Ghostty)
-//
-// 	if path != Ghostty.localInstallPath[getLocalDirIndex()] {
-// 		t.Errorf("Path received (%s) was not as expected (%s)", path, Ghostty.localInstallPath[getLocalDirIndex()])
-// 	}
-// }
+	gitCreateSandbox(func(dir string) {
+		stdout, stderr := gitStatus(dir)
 
-// func TestGetRsyncPaths(t *testing.T) {
-// 	type RsyncTest struct {
-// 		config   Config
-// 		expect   string
-// 		target   string
-// 		upstream bool
-// 	}
-//
-// 	tests := []RsyncTest{
-// 		// TEST: If copying upstream && config is a directory, dest == config localDotfilesRepoPath including (copying the contents of src into dest)
-// 		{config: Alacritty, upstream: true, target: "dest", expect: Alacritty.localDotfilesRepoPath},
-// 		// TEST: If copying upstream && config is not a directory, dest == configs root directory (copying local file to config dir root)
-// 		{config: Vim, upstream: true, target: "dest", expect: Vim.localDotfilesRepoPath},
-// 		// TEST: If copying upstream && config is a directory, src == config.localInstallPath + "/" (rsync only copies dir contents if dir ends "/")
-// 		{config: Alacritty, upstream: true, target: "src", expect: getOSSpecificDestionationPath(Alacritty) + "/"},
-// 		// TEST: If copying downstream && config is a directory, dest == config localInstallPath - "config name"
-// 		{config: Alacritty, upstream: false, target: "dest", expect: path.Dir(getOSSpecificDestionationPath(Alacritty))},
-// 		// TEST: If copying downstram && config is a directory, src == config's localDotfilesRepoPath in configs dir
-// 		{config: Alacritty, upstream: false, target: "src", expect: Alacritty.localDotfilesRepoPath},
-// 	}
-//
-// 	for _, v := range tests {
-// 		dest, src := getRsyncPaths(v.config, v.upstream)
-//
-// 		if v.target == "dest" {
-// 			if dest != v.expect {
-// 				t.Errorf("Rsync destination path (%s) not as expected (%s)", dest, v.expect)
-// 			}
-// 		}
-//
-// 		if v.target == "src" {
-// 			if src != v.expect {
-// 				t.Errorf("Rsync source path (%s) not as expected (%s)", src, v.expect)
-// 			}
-// 		}
-// 	}
-// }
+		if stderr != nil {
+			t.Error("Expected no errors from gitStatus")
+		}
 
-// func TestPullFromGit(t *testing.T) {
-// 	path := getHomePath() + "/dev/configpp"
-//
-// 	// Happy path - clear all changes from git status
-//
-// 	gitStashBegin()
-//
-// 	_, stderr := gitPull(path)
-// 	if stderr != nil {
-// 		t.Errorf("There was an unexpected error from gitPull(): [%s]", stderr.Error())
-// 	}
-//
-// 	gitStashEnd()
-//
-// 	// Sad path - create uncommitted changes to dirty the working tree to prevent pulling
-//
-// 	gitStashBegin()
-// 	// gitDirtyWorkingTree()
-//
-// 	_, stderr = gitPull(path)
-// 	if stderr != nil {
-// 		t.Errorf("Error expected from gitPull()")
-// 	}
-//
-// 	gitCleanWorkingTree()
-// 	gitStashEnd()
-// }
+		if !strings.Contains(string(stdout), "nothing to commit, working tree clean") {
+			t.Error("Expected stdout to contain, 'nothing to commit, working tree clean'")
+		}
+	})
+
+	// Sad path
+	// 1. Output contains "Changes not staged for commit:"
+	// 2. Output contains "Changes to be committed"
+	// 3. Output contains "Untracked files"
+	// 4. Error contains "fatal: not a git repository"
+
+	// 1. Output contains "Changes not staged for commit:"
+	gitCreateSandbox(func(dir string) {
+		gitDirtyRepoWithTrackedChange(dir)
+
+		stdout, stderr := gitStatus(dir)
+
+		fmt.Printf("\n\n\n%s\n\n\n", stdout)
+
+		if stderr != nil {
+			t.Error("Expected no errors from gitStatus")
+		}
+
+		if !strings.Contains(string(stdout), "Changes not staged for commit:") {
+			t.Error("Expected stdout to contain, 'Changes not staged for commit:'")
+		}
+	})
+
+	// 2. Output contains "Changes to be committed"
+	gitCreateSandbox(func(dir string) {
+		gitDirtyRepoWithTrackedChange(dir)
+		gitAddAll(dir)
+
+		stdout, stderr := gitStatus(dir)
+
+		if stderr != nil {
+			t.Error("Expected no errors from gitStatus")
+		}
+
+		if !strings.Contains(string(stdout), "Changes to be committed") {
+			t.Error("Expected stdout to contain, 'Changes to be committed'")
+		}
+	})
+
+	// 3. Output contains "Untracked files"
+	gitCreateSandbox(func(dir string) {
+		gitDirtyRepoWithUntrackedChange(dir)
+
+		stdout, stderr := gitStatus(dir)
+
+		if stderr != nil {
+			t.Error("Expected no errors from gitStatus")
+		}
+
+		if !strings.Contains(string(stdout), "Untracked files") {
+			t.Error("Expected stdout to contain, 'Untracked files'")
+		}
+	})
+
+	// 4. Error contains "fatal: not a git repository"
+	chdir("/tmp")
+
+	stdout, _ := gitStatus("/tmp")
+
+	if !strings.Contains(string(stdout), "fatal: not a git repository") {
+		t.Error("Expected stdout to contain, 'fatal: not a git repository'")
+	}
+}
+
+func TestGetLocalDirIndex(t *testing.T) {
+	index := getLocalDirIndex()
+
+	if OS == "darwin" {
+		if index != 0 {
+			t.Error("Incorrect index returned for Mac devices")
+		}
+	} else if OS == "linux" {
+		if index != 1 {
+			t.Error("Incorrect index returned for Linux devices")
+		}
+	} else {
+		if index != 2 {
+			t.Error("Incorrect index returned for Other devices")
+		}
+	}
+}
+
+// Ghostty installs in a different location in Mac OSX
+func TestGetOSSpecificDestinationPath(t *testing.T) {
+	path := getOSSpecificDestionationPath(Ghostty)
+
+	if path != Ghostty.localInstallPath[getLocalDirIndex()] {
+		t.Errorf("Path received (%s) was not as expected (%s)", path, Ghostty.localInstallPath[getLocalDirIndex()])
+	}
+}
+
+func TestGetRsyncPaths(t *testing.T) {
+	type RsyncTest struct {
+		config   Config
+		expect   string
+		target   string
+		upstream bool
+	}
+
+	tests := []RsyncTest{
+		// TEST: If copying upstream && config is a directory, dest == config localDotfilesRepoPath including (copying the contents of src into dest)
+		{config: Alacritty, upstream: true, target: "dest", expect: Alacritty.localDotfilesRepoPath},
+		// TEST: If copying upstream && config is not a directory, dest == configs root directory (copying local file to config dir root)
+		{config: Vim, upstream: true, target: "dest", expect: Vim.localDotfilesRepoPath},
+		// TEST: If copying upstream && config is a directory, src == config.localInstallPath + "/" (rsync only copies dir contents if dir ends "/")
+		{config: Alacritty, upstream: true, target: "src", expect: getOSSpecificDestionationPath(Alacritty) + "/"},
+		// TEST: If copying downstream && config is a directory, dest == config localInstallPath - "config name"
+		{config: Alacritty, upstream: false, target: "dest", expect: path.Dir(getOSSpecificDestionationPath(Alacritty))},
+		// TEST: If copying downstram && config is a directory, src == config's localDotfilesRepoPath in configs dir
+		{config: Alacritty, upstream: false, target: "src", expect: Alacritty.localDotfilesRepoPath},
+	}
+
+	for _, v := range tests {
+		dest, src := getRsyncPaths(v.config, v.upstream)
+
+		if v.target == "dest" {
+			if dest != v.expect {
+				t.Errorf("Rsync destination path (%s) not as expected (%s)", dest, v.expect)
+			}
+		}
+
+		if v.target == "src" {
+			if src != v.expect {
+				t.Errorf("Rsync source path (%s) not as expected (%s)", src, v.expect)
+			}
+		}
+	}
+}
+
+func TestPullFromGit(t *testing.T) {
+	gitCreateSandbox(func(dir string) {
+		_, stderr := gitPull(dir)
+		if stderr != nil {
+			t.Errorf("There was an unexpected error from gitPull(): [%s]", stderr.Error())
+		}
+	})
+
+	// Sad path - create uncommitted changes to dirty the working tree to prevent pulling
+
+	gitCreateSandbox(func(dir string) {
+		gitDirtyRepoWithTrackedChange(dir)
+		gitAddAll(dir)
+
+		stdout, _ := gitPull(dir)
+		if !strings.Contains(string(stdout), "Your index contains uncommitted changes") {
+			t.Errorf("Error containing 'Your index contains uncommitted changes' expected")
+		}
+	})
+}
 
 func TestPushToGit(t *testing.T) {
 	gitCreateSandbox(func(dir string) {
-		gitDirtyLocalRepo(dir)
+		gitDirtyRepoWithUntrackedChange(dir)
 		gitAddAll(dir)
 		gitCommit(dir)
 
@@ -484,32 +553,32 @@ func TestPushToGit(t *testing.T) {
 	})
 }
 
-// func TestGetHomePath(t *testing.T) {
-// 	if OS == "darwin" {
-// 		expect := "/Users/" + USERNAME
-// 		if getHomePath() != expect {
-// 			t.Errorf("Homepath returned for Mac is incorrect")
-// 		}
-// 	} else {
-// 		expect := "/home/" + USERNAME
-// 		if getHomePath() != expect {
-// 			t.Errorf("Homepath returned for Linux is incorrect")
-// 		}
-// 	}
-// }
+func TestGetHomePath(t *testing.T) {
+	if OS == "darwin" {
+		expect := "/Users/" + USERNAME
+		if getHomePath() != expect {
+			t.Errorf("Homepath returned for Mac is incorrect")
+		}
+	} else {
+		expect := "/home/" + USERNAME
+		if getHomePath() != expect {
+			t.Errorf("Homepath returned for Linux is incorrect")
+		}
+	}
+}
 
-// func TestReplaceTildeInPath(t *testing.T) {
-// 	home := getHomePath()
-// 	tests := []InputOutput{
-// 		{input: "~/dev", output: home + "/dev"},
-// 		{input: "~/dev/configs/vim", output: home + "/dev/configs/vim"},
-// 	}
-//
-// 	for _, v := range tests {
-// 		replaced := replaceTildeInPath(v.input)
-//
-// 		if replaced != v.output {
-// 			t.Errorf("Tilde in path was not replaced properly; test: %s; replaced: %s", v.input, replaced)
-// 		}
-// 	}
-// }
+func TestReplaceTildeInPath(t *testing.T) {
+	home := getHomePath()
+	tests := []InputOutput{
+		{input: "~/dev", output: home + "/dev"},
+		{input: "~/dev/configs/vim", output: home + "/dev/configs/vim"},
+	}
+
+	for _, v := range tests {
+		replaced := replaceTildeInPath(v.input)
+
+		if replaced != v.output {
+			t.Errorf("Tilde in path was not replaced properly; test: %s; replaced: %s", v.input, replaced)
+		}
+	}
+}

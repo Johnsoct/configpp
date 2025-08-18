@@ -3,7 +3,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -171,23 +170,6 @@ func deleteLocalShareNvim() {
 	fmt.Println("nvim deleted from ~/.local/share/nvim")
 }
 
-func getConfigs(dir string) ([]error, []error) {
-	pullErrors := make([]error, 0)
-	statusErrors := make([]error, 0)
-
-	_, statusError := gitStatus(dir)
-	if statusError != nil {
-		statusErrors = append(statusErrors, statusError)
-	}
-
-	_, pullError := gitPull(dir)
-	if pullError != nil {
-		pullErrors = append(pullErrors, pullError)
-	}
-
-	return statusErrors, pullErrors
-}
-
 func getHomePath() string {
 	// NOTE: I am not worrying about the possibility of an error because
 	// none of my machines, in reality or theoretical, could operate without
@@ -289,8 +271,8 @@ func gitPush(dir string) ([]byte, error) {
 }
 
 /*
- * Pushes to "origin" remote's "main" branch and prints the output.
- * Gets the status
+ * Prints the output of calling `git status`
+ * Returns
  */
 func gitStatus(dir string) ([]byte, error) {
 	cmd := exec.Command("git", "status")
@@ -302,11 +284,6 @@ func gitStatus(dir string) ([]byte, error) {
 	}
 
 	fmt.Printf("%s", stdout)
-
-	// NOTE: not checking for untracked files because we're rebasing on pull
-	if strings.Contains(string(stdout), UncommittedText) {
-		return nil, errors.New("Changes need to be committed in" + dir)
-	}
 
 	return stdout, stderr
 }
@@ -334,6 +311,19 @@ func gitStashEnd() {
 }
 
 /*
+ * Pulls in changes from origin/<currentBranch>
+ * Returns error of git status and pull
+ */
+func pullDownConfigs(dir string) (error, []byte) {
+	pullStdout, pullStderr := gitPull(dir)
+	if pullStderr != nil {
+		fmt.Printf("\n%s\n%v\n", pullStdout, pullStderr)
+	}
+
+	return pullStderr, pullStdout
+}
+
+/*
  * Replaces a "~" in a path with your local $HOME path variable value.
  */
 func replaceTildeInPath(path string) string {
@@ -358,11 +348,9 @@ func main() {
 		}
 	} else {
 		// Pull most recent changes from upstream (git)
-		statusErrors, pullErrors := getConfigs(ConfigsSrc)
-		if len(statusErrors) != 0 {
-			fmt.Fprintf(os.Stderr, "Errors checking git status: %v\n", statusErrors)
-		} else if len(pullErrors) != 0 {
-			fmt.Fprintf(os.Stderr, "Errors pulling from git: %v\n", pullErrors)
+		pullStderr, _ := pullDownConfigs(ConfigsSrc)
+		if pullStderr != nil {
+			fmt.Fprintf(os.Stderr, "Errors pulling from git: %v\n", pullStderr)
 		}
 
 		cpConfigs()
