@@ -10,6 +10,9 @@ However, I don't think there's an issue with copying our local config to /dev/co
 **Update (20250703)**
 Not sure what changed my mind, but I added "upstream" functionality to push local changes to my local configs repo and then to git... It's great. No regret. I use it all the time.
 
+**Update (20250818)**
+Refactored the entire test suite to utilize sandbox git directories in /tmp instead of relying on performing tests with the actual project repo. I also added a sweet of test functions to simplify creating and executing commands.
+
 ## Example
 
 I use Ghostty as my terminal, and vim/Nvim for the majority of my code editing; however, Ghostty stores its config in different places on Mac and Linux, and I didn't want to create a git repo in `~/Library/Application Support/com.mitchellh.ghostty/`, so I am storing two versions of my Ghostty config in `~/dev/configs/ghostty/`, which is kept updated in GitHub, and then after pulling those configs down, I copy them to their respective locations.
