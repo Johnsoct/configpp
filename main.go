@@ -36,8 +36,7 @@ var (
 		localDotfilesRepoPath: ConfigsSrc + "/bash/.bash_aliases",
 	}
 	Bashrc = Config{
-		dir: false,
-
+		dir:                   false,
 		localInstallPath:      []string{getHomePath() + "/.bashrc"},
 		localDotfilesRepoPath: ConfigsSrc + "/bash/.bashrc",
 	}

@@ -67,9 +67,10 @@ func gitCommit(dir string) {
      * 2.1 Initializes temp dir as git repo
      * 2.2 Sets local git config settings for user (email/name)
      * 2.3 Sets the origin remote to our remote git directory
-     * 2.4 Calls the callback
-     * 2.5 Removes temp dir
- * 3 Removes remote git dir
+     * 2.4 Makes the initial commit so there is something to push
+     * 2.5 Pushes to set tracking between local and remote
+     * 2.6 Calls the callback
+ * 3. Removes local and remote git dir (deferred statements)
 */
 func gitCreateSandbox(callback func(dir string)) {
 	// Our pseudo remote repository (i.e. GitHub)
@@ -101,10 +102,13 @@ func gitCreateSandbox(callback func(dir string)) {
 
 /*
  * Modifies README.md, from the provided directory
+ *
+ * NOTE: cannot use `executeCommand(dir, "echo", "\"potatofart\"", ">>", "README.md")`
+ * because ">>" is only interpreted within a shell, and `exec.Command` does not operate
+ * within a shell.
  */
 func gitDirtyRepoWithTrackedChange(dir string) {
 	executeCommand(dir, "bash", "-lc", "echo potatofart >> README.md")
-	// executeCommand(dir, "echo", "\"potatofart\"", ">>", "README.md")
 }
 
 /*
@@ -366,7 +370,6 @@ func TestPullDownConfigs(t *testing.T) {
 		pullStderr, pullStdout := pullDownConfigs(dir)
 		pullStdoutContains := strings.Contains(string(pullStdout), "Already up to date.")
 
-		fmt.Printf("%s", pullStdout)
 		if pullStderr != nil || !pullStdoutContains {
 			t.Error("Expected 'Already up to date.' stdout pulling from remote while already up-to-date")
 		}
@@ -401,8 +404,6 @@ func TestGetGitStatus(t *testing.T) {
 		gitDirtyRepoWithTrackedChange(dir)
 
 		stdout, stderr := gitStatus(dir)
-
-		fmt.Printf("\n\n\n%s\n\n\n", stdout)
 
 		if stderr != nil {
 			t.Error("Expected no errors from gitStatus")
